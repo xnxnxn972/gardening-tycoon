@@ -1,0 +1,13 @@
+# Claude Code workspace files (contain personal settings + secrets)
+.claude/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor scratch
+.vscode/
+.idea/
+*.swp
+*~

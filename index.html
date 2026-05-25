@@ -1,0 +1,3432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gardening Tycoon</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f5edd6; color: #4a3825; }
+  #canvas-container { width: 100vw; height: 100vh; display: block; }
+  canvas { display: block; }
+
+  .panel {
+    background: rgba(255, 250, 240, 0.96);
+    padding: 12px 16px;
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(100, 70, 40, 0.18);
+    border: 1px solid rgba(180, 140, 90, 0.25);
+  }
+
+  .hud { position: absolute; top: 14px; left: 14px; min-width: 250px; max-width: 320px; pointer-events: auto; }
+  .coins-display { font-size: 22px; font-weight: bold; color: #b8860b; }
+  .date-display { margin-top: 4px; font-size: 13px; color: #6b5a45; }
+  .season-spring { color: #c060a0; font-weight: bold; }
+  .season-summer { color: #e88420; font-weight: bold; }
+  .season-fall   { color: #c04020; font-weight: bold; }
+  .season-winter { color: #4f87b3; font-weight: bold; }
+
+  .selected-info { margin-top: 10px; font-size: 12px; }
+  .selected-seed-name { background: #a3c46e; color: #2d4a1a; padding: 2px 8px; border-radius: 10px; font-weight: bold; }
+  .selected-seed-name.none { background: #e0d4b8; color: #6b5a45; }
+
+  .seed-pills { margin-top: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .seed-pill { background: #ede0c8; padding: 5px 8px; border-radius: 8px; font-size: 11px; cursor: pointer; border: 2px solid transparent; text-align: center; transition: all .15s; user-select: none; }
+  .seed-pill:hover { background: #ddd1ba; }
+  .seed-pill.active { border-color: #6ba84f; background: #c8e0a6; }
+  .seed-pill.disabled { opacity: .5; cursor: not-allowed; }
+
+  .hint { margin-top: 10px; font-size: 11px; color: #8a7a60; line-height: 1.5; }
+
+  .top-right { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+  button {
+    background: linear-gradient(180deg, #e0a063 0%, #c08550 100%);
+    color: white; border: none; padding: 9px 16px; border-radius: 10px; cursor: pointer;
+    font-weight: bold; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,.15); transition: transform .1s;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,.22); }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button:disabled { background: #b5a895; cursor: not-allowed; opacity: .6; }
+  button.small { padding: 5px 11px; font-size: 11px; }
+  button.danger { background: linear-gradient(180deg, #c06060 0%, #a04040 100%); }
+  button.success { background: linear-gradient(180deg, #6fb04f 0%, #4f9030 100%); }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 99; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fdf5e0; padding: 24px; border-radius: 18px; box-shadow: 0 8px 32px rgba(0,0,0,.3); max-width: 760px; width: 92%; max-height: 86vh; overflow-y: auto; border: 2px solid #d4a373; }
+  .modal h2 { margin: 0 0 14px 0; color: #6b4423; border-bottom: 2px solid #e0c79a; padding-bottom: 8px; }
+  .modal h3 { margin: 18px 0 8px 0; color: #8b5a2b; }
+
+  .store-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid #e0c79a; }
+  .store-tab { background: transparent; color: #8a6a3a; padding: 8px 14px; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; font-size: 13px; border: none; box-shadow: none; transform: none !important; }
+  .store-tab:hover { background: #f0e2c4; }
+  .store-tab.active { background: #d4a373; color: white; }
+
+  .toggle-switch { position: relative; display: inline-block; width: 38px; height: 20px; vertical-align: middle; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-track { position: absolute; cursor: pointer; inset: 0; background: #c8b89a; border-radius: 12px; transition: background .2s; }
+  .toggle-track::before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .toggle-switch input:checked + .toggle-track { background: #6ba84f; }
+  .toggle-switch input:checked + .toggle-track::before { transform: translateX(18px); }
+  .auto-sell-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b5a45; }
+
+  .decoration-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 8px; border-bottom: 1px solid #e8d8b8; }
+  .decoration-row:last-child { border-bottom: none; }
+  .decoration-row .icon { font-size: 28px; width: 40px; text-align: center; }
+  .decoration-row .name { font-weight: bold; font-size: 14px; color: #4a3825; }
+  .decoration-row .meta { font-size: 11px; color: #8a7a60; margin-top: 2px; }
+  .owned-badge { display: inline-block; background: #a3c46e; color: #2d4a1a; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-left: 6px; }
+
+  .crop-row { display: grid; grid-template-columns: 1.1fr 1.2fr auto; align-items: center; gap: 12px; padding: 10px 8px; border-bottom: 1px solid #e8d8b8; }
+  .crop-row:last-child { border-bottom: none; }
+  .crop-row .name { font-weight: bold; font-size: 15px; color: #4a3825; display: flex; align-items: center; }
+  .crop-row .meta { font-size: 12px; color: #6b5a45; line-height: 1.55; }
+  .crop-row .actions { display: flex; gap: 4px; align-items: center; }
+  .crop-icon { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 8px; border: 1px solid rgba(0,0,0,.15); }
+  .inventory-line { font-size: 11px; color: #8a7a60; margin-top: 3px; }
+
+  .tooltip { position: absolute; background: rgba(40, 30, 20, .93); color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; pointer-events: none; display: none; z-index: 50; line-height: 1.5; max-width: 240px; }
+  .progress-bar { height: 5px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #7bd87b, #a3e07a); transition: width .3s; }
+
+  .modal-footer { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+  .ready-badge { background: #a3c46e; color: #1f3010; padding: 2px 7px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-left: 4px; }
+
+  .flash { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(40,30,20,.92); color: white; padding: 9px 20px; border-radius: 18px; font-size: 13px; display: none; z-index: 60; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+
+  /* ===== Nickname / Leaderboard ===== */
+  .nick-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    border: 2px solid #d4a373;
+    border-radius: 8px;
+    background: #fdf5e0;
+    color: #4a3825;
+    box-sizing: border-box;
+    margin-top: 10px;
+  }
+  .nick-input:focus { outline: none; border-color: #b58252; }
+
+  .lb-row {
+    display: grid;
+    grid-template-columns: 38px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e8d8b8;
+    font-size: 14px;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row .rank { font-weight: bold; color: #8a6a3a; text-align: center; }
+  .lb-row .rank.gold { color: #c8a020; font-size: 16px; }
+  .lb-row .rank.silver { color: #8a9aa8; font-size: 15px; }
+  .lb-row .rank.bronze { color: #b07a48; font-size: 15px; }
+  .lb-row .nick { color: #4a3825; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-row .score { color: #b8860b; font-weight: bold; }
+  .lb-row.me { background: linear-gradient(90deg, rgba(110,180,80,0.22), rgba(110,180,80,0.08)); border-left: 3px solid #6ba84f; padding-left: 9px; border-radius: 4px; }
+  .lb-empty { padding: 28px 12px; text-align: center; color: #8a7a60; font-size: 13px; }
+  .lb-loading { padding: 18px 12px; text-align: center; color: #8a7a60; font-size: 12px; }
+  .lb-self-rank { margin-top: 10px; padding: 8px 12px; background: rgba(110,180,80,0.10); border-radius: 6px; font-size: 12px; color: #4a6a30; }
+  .lb-disabled-note { padding: 14px 16px; background: rgba(200,140,60,0.10); border-radius: 8px; color: #8a5a2b; font-size: 12px; line-height: 1.5; }
+  .lb-nick-row { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: rgba(180,130,90,0.08); border-radius: 8px; font-size: 12px; }
+  .lb-nick-row .label { color: #6b5a45; }
+  .lb-nick-row .name { font-weight: bold; color: #4a3825; }
+
+  .speed-panel { position: absolute; top: 64px; right: 14px; display: flex; gap: 4px; align-items: center; padding: 8px 12px; }
+  .speed-panel .label { font-size: 11px; font-weight: bold; color: #6b5a45; margin-right: 4px; }
+  .speed-btn { background: #ede0c8; color: #5a4225; padding: 5px 10px; font-size: 11px; border-radius: 7px; box-shadow: none; border: 2px solid transparent; }
+  .speed-btn:hover:not(:disabled) { background: #ddd1ba; transform: none; box-shadow: none; }
+  .speed-btn.active { background: #d4a373; color: white; border-color: #b58252; }
+  .speed-indicator { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(200, 100, 30, 0.92); color: white; padding: 6px 18px; border-radius: 14px; font-size: 12px; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,.25); display: none; z-index: 55; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 0.92; } 50% { opacity: 0.65; } }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<div class="panel hud">
+  <div class="coins-display">🪙 <span id="coins">100</span></div>
+  <div class="date-display" id="date-display">Year 1 · Spring · Month 1 · Day 1</div>
+  <div class="selected-info">Selected: <span class="selected-seed-name none" id="selected-seed">None</span></div>
+  <div class="seed-pills" id="seed-pills"></div>
+  <div class="hint">
+    💡 Click an <b>empty plot</b> to plant the selected seed.<br>
+    Click a <b>mature crop</b> to harvest. Use the 🏪 <b>Store</b> to buy seeds and sell produce.
+  </div>
+</div>
+
+<div class="top-right">
+  <button onclick="window.openStore()">🏪 Store</button>
+  <button onclick="window.openLeaderboard()">🏆 Leaderboard</button>
+  <button class="danger" onclick="window.resetGame()">↻ Reset</button>
+</div>
+
+<div class="panel speed-panel">
+  <span class="label">⏩ Speed</span>
+  <button class="speed-btn active" data-speed="1">1×</button>
+  <button class="speed-btn" data-speed="4">4×</button>
+  <button class="speed-btn" data-speed="20">20×</button>
+  <button class="speed-btn" data-speed="100">100×</button>
+</div>
+
+<div class="speed-indicator" id="speed-indicator">⚡ TIME WARP ×<span id="speed-indicator-value">1</span></div>
+
+<div class="modal-bg" id="store-modal">
+  <div class="modal">
+    <h2>🏪 Store &amp; Market</h2>
+    <div>Coins on hand: <strong style="color:#b8860b;">🪙 <span id="store-coins">0</span></strong></div>
+
+    <div class="store-tabs" id="store-tabs">
+      <button class="store-tab active" data-tab="seeds">🌱 Seeds</button>
+      <button class="store-tab" data-tab="produce">🧺 Produce</button>
+      <button class="store-tab" data-tab="buildings">🏗️ Buildings</button>
+      <button class="store-tab" data-tab="decorations">🎨 Decorations</button>
+    </div>
+
+    <div id="store-tab-content"></div>
+
+    <div class="modal-footer">
+      <button onclick="window.closeStore()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nickname prompt (shown once on first launch, also opened via "Change nickname") -->
+<div class="modal-bg" id="nick-modal">
+  <div class="modal" style="max-width: 420px;">
+    <h2>🌱 What's your gardener name?</h2>
+    <div style="font-size: 13px; color: #6b5a45; line-height: 1.5;">
+      Pick a nickname so others can see you on the 🏆 leaderboard.
+      You can change this any time.
+    </div>
+    <input type="text" id="nick-input" class="nick-input" maxlength="24" placeholder="e.g. RadishKing" autocomplete="off">
+    <div style="font-size: 11px; color: #8a7a60; margin-top: 6px;">2–24 characters. Letters, numbers, spaces.</div>
+    <div class="modal-footer">
+      <button id="nick-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Global leaderboard -->
+<div class="modal-bg" id="leaderboard-modal">
+  <div class="modal">
+    <h2>🏆 Leaderboard</h2>
+    <div class="lb-nick-row" id="lb-nick-row">
+      <span class="label">Playing as:</span>
+      <span class="name" id="lb-self-nick">—</span>
+      <button class="small" onclick="window.changeNickname()" style="margin-left: auto;">Change nickname</button>
+    </div>
+
+    <div class="store-tabs" id="lb-tabs">
+      <button class="store-tab active" data-lb="now">🪙 Coins Now</button>
+      <button class="store-tab" data-lb="day">📅 Last 24h</button>
+      <button class="store-tab" data-lb="week">📅 Last 7d</button>
+      <button class="store-tab" data-lb="month">📅 Last 30d</button>
+      <button class="store-tab" data-lb="lifetime">🏆 All-time</button>
+    </div>
+
+    <div id="lb-content"></div>
+
+    <div class="modal-footer">
+      <button onclick="window.closeLeaderboard()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="flash" id="flash"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { createClient } from '@supabase/supabase-js';
+
+/* ============================================================
+   SUPABASE / LEADERBOARD CONFIG
+   ------------------------------------------------------------
+   Paste your project's URL and anon (public) key here. You can find both at:
+     Supabase dashboard → your project → Settings → API
+   Leave as the YOUR_... placeholders to run without a leaderboard.
+============================================================ */
+const SUPABASE_URL      = 'https://hmvxanqkorcfxwsdusuj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtdnhhbnFrb3JjZnh3c2R1c3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjI4OTgsImV4cCI6MjA5NTI5ODg5OH0.7o7OnhikQdgApqPTEIbhjOZ-YcKDU1fBFpcLXPXtEtA';
+const LEADERBOARD_ENABLED = !SUPABASE_URL.startsWith('YOUR_') && !SUPABASE_ANON_KEY.startsWith('YOUR_');
+const supabase = LEADERBOARD_ENABLED ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+/* ============================================================
+   CONFIG / TUNING KNOBS  (edit these to retune the game)
+============================================================ */
+const REAL_MS_PER_GAME_DAY = 72 * 1000;        // 72 real seconds = 1 game day (was 1 real hour; new baseline is 50× faster).
+const PLOT_SIZE   = 1.05;
+const PLOT_GAP    = 0.10;
+const GRID_SIZE   = 3;                          // 3×3 plot grid
+const NUM_PLOTS   = GRID_SIZE * GRID_SIZE;
+const SAVE_INTERVAL_MS = 6000;
+const CAMERA_ZOOM = 6.4;                        // ortho frustum half-height
+const STARTING_COINS = 100;
+
+const CROPS = {
+  // Starter crops — always unlocked
+  radish:    { name: 'Radish',        growDays: 30,  seedCost: 5,  sellPrice: 9,   produceColor: 0xd0463c, leafColor: 0x6ba84f, unlockCost: 0,    icon: '🌶️' },
+  spinach:   { name: 'Spinach',       growDays: 45,  seedCost: 8,  sellPrice: 15,  produceColor: 0x357d35, leafColor: 0x4a9a4a, unlockCost: 0,    icon: '🥬' },
+  beans:     { name: 'Beans',         growDays: 60,  seedCost: 12, sellPrice: 24,  produceColor: 0x9bc966, leafColor: 0x5a8a3a, unlockCost: 0,    icon: '🫘' },
+  tomatoes:  { name: 'Tomatoes',      growDays: 75,  seedCost: 16, sellPrice: 32,  produceColor: 0xd94e3a, leafColor: 0x5a8a3a, unlockCost: 0,    icon: '🍅' },
+  peppers:   { name: 'Sweet Peppers', growDays: 85,  seedCost: 20, sellPrice: 42,  produceColor: 0xd34545, leafColor: 0x6ba84f, unlockCost: 0,    icon: '🌶️' },
+  // Unlockable premium crops — pay a one-time fee to unlock the seed
+  strawberry:{ name: 'Strawberry',    growDays: 50,  seedCost: 25, sellPrice: 65,  produceColor: 0xd0304f, leafColor: 0x4a8a3a, unlockCost: 500,  icon: '🍓' },
+  carrot:    { name: 'Carrot',        growDays: 65,  seedCost: 30, sellPrice: 80,  produceColor: 0xea7430, leafColor: 0x5fa84f, unlockCost: 700,  icon: '🥕' },
+  pineapple: { name: 'Pineapple',     growDays: 100, seedCost: 50, sellPrice: 150, produceColor: 0xe8b830, leafColor: 0x3e7d3a, unlockCost: 1000, icon: '🍍' },
+  watermelon:{ name: 'Watermelon',    growDays: 120, seedCost: 70, sellPrice: 220, produceColor: 0x3a7a3a, leafColor: 0x5fa84f, unlockCost: 1500, icon: '🍉' },
+  // Trade-off triangle crops — each is strong in exactly ONE axis.
+  // Cucumber = cheap-seed king; Lettuce = speed king; Eggplant = yield king.
+  cucumber:  { name: 'Cucumber',      growDays: 80,  seedCost: 15, sellPrice: 42,  produceColor: 0x4a8a3a, leafColor: 0x5fa84f, unlockCost: 2000, icon: '🥒', specialty: 'cheap'  },
+  lettuce:   { name: 'Lettuce',       growDays: 22,  seedCost: 45, sellPrice: 95,  produceColor: 0x9bc966, leafColor: 0x7ec050, unlockCost: 2000, icon: '🥗', specialty: 'fast'   },
+  eggplant:  { name: 'Eggplant',      growDays: 130, seedCost: 60, sellPrice: 300, produceColor: 0x5a2a6e, leafColor: 0x5a8a3a, unlockCost: 2500, icon: '🍆', specialty: 'yield'  },
+};
+const CROP_IDS = Object.keys(CROPS);
+const STARTER_CROP_IDS = CROP_IDS.filter(id => CROPS[id].unlockCost === 0);
+
+const SEASON_THEMES = {
+  Spring: { ambient: 0xffe9d6, dir: 0xfff3da, grass: 0xa3c46e, sky: 0xf5edd6 },
+  Summer: { ambient: 0xfff0c8, dir: 0xfff5da, grass: 0x8ec466, sky: 0xf3e8c8 },
+  Fall:   { ambient: 0xffd5a0, dir: 0xffe1b8, grass: 0xc0a868, sky: 0xefd9b0 },
+  Winter: { ambient: 0xe2e6ee, dir: 0xf0f4ff, grass: 0xc5d6c0, sky: 0xe8e3d8 },
+};
+
+// ===== BUILDINGS =====
+const COOP_COST       = 500;
+const COOP_POSITION   = { x: 2.45, y: 0, z: -2.45 };  // back-right corner, ~2.2×2.2 footprint
+const EGG_GAME_DAYS   = 1;     // 1 egg per game day
+const EGG_SELL_PRICE  = 8;
+
+// ===== DECORATIONS =====
+// Each entry: name, cost, icon (emoji for store UI)
+const DECORATIONS = {
+  fence:    { name: 'White Picket Fence', cost: 100, icon: '🪵' },
+  arch:     { name: 'Garden Arch',        cost: 200, icon: '🌸' },
+  gnome:    { name: 'Garden Gnome',       cost: 150, icon: '🧙' },
+  pumpkin:  { name: 'Pumpkin Trio',       cost: 180, icon: '🎃' },
+  bench:    { name: 'Garden Bench',       cost: 220, icon: '🪑' },
+  birdbath: { name: 'Bird Bath',          cost: 250, icon: '🪺' },
+  lantern:  { name: 'Lantern Post',       cost: 180, icon: '🏮' },
+  scarecrow:{ name: 'Scarecrow',          cost: 400, icon: '👨‍🌾' },
+  well:     { name: 'Wishing Well',       cost: 500, icon: '🪣' },
+};
+const DECORATION_IDS = Object.keys(DECORATIONS);
+
+// Pre-defined placement slots around the yard perimeter. Each decoration purchase
+// is auto-placed into the next unoccupied slot.
+// IMPORTANT: every slot is OUTSIDE the plot grid rectangle (plot bounds are
+// roughly x: [-0.78, 2.58], z: [-0.08, 3.28]) so decorations never hide a plot.
+const DECORATION_SLOTS = [
+  // Left strip (between the left fence and the diorama interior)
+  { x: -3.3, z: -0.5, ry: 0 },
+  { x: -3.3, z:  0.7, ry: 0 },
+  { x: -3.3, z:  2.2, ry: 0 },
+  { x: -3.3, z:  3.4, ry: 0 },
+  // Right strip (clear of the chicken-coop footprint and the right-front tree)
+  { x:  3.4, z: -0.5, ry: 0 },
+  { x:  3.4, z:  1.4, ry: 0 },
+  // Front edge — between the front row of plots and the front of the grass
+  { x: -1.6, z:  3.6, ry: 0 },
+  { x:  0.5, z:  3.6, ry: 0 },
+  // Back area — behind/beside the house, not in the coop quadrant
+  { x: -0.5, z: -3.3, ry: 0 },
+  { x:  0.7, z: -3.3, ry: 0 },
+];
+
+/* ============================================================
+   STATE  (persisted to localStorage)
+============================================================ */
+const STORAGE_KEY = 'gardening_tycoon_save_v1';
+function defaultState() {
+  return {
+    coins: STARTING_COINS,
+    inventorySeeds:   Object.fromEntries(CROP_IDS.map(id => [id, 0])),
+    // produce inventory: crop counts + a special 'eggs' slot for animal product
+    inventoryProduce: { ...Object.fromEntries(CROP_IDS.map(id => [id, 0])), eggs: 0 },
+    plots: Array(NUM_PLOTS).fill(null).map(() => ({ cropId: null, plantedAt: null })),
+    gameEpochRealMs: Date.now(),
+    lastSaveRealMs:  Date.now(),
+    selectedSeed: null,
+    timeAccelMs: 0,
+    // Auto-sell flag per crop: if true, harvested produce is sold immediately for coins
+    autoSell: Object.fromEntries(CROP_IDS.map(id => [id, false])),
+    // Chicken coop
+    coopOwned: false,
+    coopLastEggCrossing: null, // count of 07:00 sunrises the coop has been "credited" for (lazy-init)
+    // Decorations: array of { type, slot } entries
+    decorations: [],
+    // Which crops the player has unlocked (starter set is always unlocked)
+    unlockedCrops: STARTER_CROP_IDS.slice(),
+    // Online identity + lifetime tracking for the global leaderboard
+    playerId: null,                // UUID assigned on first launch
+    playerName: null,              // nickname chosen by the player
+    lifetimeCoinsEarned: 0,        // total coins ever earned via sells/auto-sells (never decreases)
+  };
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const loaded = JSON.parse(raw);
+    const base = defaultState();
+    return {
+      ...base,
+      ...loaded,
+      inventorySeeds:   { ...base.inventorySeeds,   ...(loaded.inventorySeeds   || {}) },
+      inventoryProduce: { ...base.inventoryProduce, ...(loaded.inventoryProduce || {}) },
+      autoSell:         { ...base.autoSell,         ...(loaded.autoSell         || {}) },
+      decorations:      Array.isArray(loaded.decorations)   ? loaded.decorations   : [],
+      unlockedCrops:    Array.isArray(loaded.unlockedCrops) ? loaded.unlockedCrops : base.unlockedCrops,
+      plots: Array.isArray(loaded.plots) && loaded.plots.length === NUM_PLOTS ? loaded.plots : base.plots,
+    };
+  } catch (e) { console.warn('Save load failed:', e); return defaultState(); }
+}
+function saveState() {
+  state.lastSaveRealMs = Date.now();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { console.warn(e); }
+}
+let state = loadState();
+
+window.resetGame = function () {
+  if (!confirm('Reset all progress? This cannot be undone.')) return;
+  // Preserve identity so the player keeps their leaderboard slot across resets
+  const keepId   = state.playerId;
+  const keepName = state.playerName;
+  localStorage.removeItem(STORAGE_KEY);
+  state = defaultState();
+  state.playerId   = keepId;
+  state.playerName = keepName;
+  saveState();
+  rebuildCrops();
+  syncCoopToScene();
+  syncDecorationsToScene();
+  updateHUD();
+  flashMessage('Game reset.');
+};
+
+/* ============================================================
+   ONLINE LEADERBOARD — identity, earnings, upserts
+============================================================ */
+// Ensure the player has a UUID. If they don't have a nickname yet, the prompt
+// fires below at startup.
+function ensurePlayerId() {
+  if (!state.playerId) {
+    state.playerId = (crypto.randomUUID && crypto.randomUUID()) ||
+      // Fallback for very old browsers
+      'p-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+    saveState();
+  }
+}
+
+// Called whenever the wallet INCREASES (sells, auto-sells, egg sells).
+// Bumps lifetime total and queues an earnings event for the leaderboard.
+function earnCoins(amount) {
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  state.coins += amount;
+  state.lifetimeCoinsEarned = (state.lifetimeCoinsEarned || 0) + amount;
+  queueEarning(amount);
+  schedulePlayerUpsert();
+}
+
+// ----- Supabase send queue (batched + throttled) -----
+let pendingEarnings = [];          // [{ player_id, amount, earned_at }, ...]
+let pendingUpsertTimer = null;
+let pendingFlushTimer  = null;
+const UPSERT_THROTTLE_MS = 5000;
+const FLUSH_INTERVAL_MS  = 8000;
+
+function queueEarning(amount) {
+  if (!supabase || !state.playerId) return;
+  pendingEarnings.push({
+    player_id: state.playerId,
+    amount,
+    earned_at: new Date().toISOString(),
+  });
+  if (!pendingFlushTimer) {
+    pendingFlushTimer = setTimeout(async () => {
+      pendingFlushTimer = null;
+      await flushEarnings();
+    }, FLUSH_INTERVAL_MS);
+  }
+}
+
+async function flushEarnings() {
+  if (!supabase || pendingEarnings.length === 0) return;
+  const batch = pendingEarnings;
+  pendingEarnings = [];
+  try {
+    await supabase.from('earnings').insert(batch);
+  } catch (e) {
+    // Network hiccup — re-queue and try again later
+    pendingEarnings = batch.concat(pendingEarnings);
+    console.warn('earnings insert failed, will retry', e);
+  }
+}
+
+// Throttled player-row upsert (keeps Coins-Now leaderboard fresh without spamming)
+function schedulePlayerUpsert() {
+  if (!supabase || !state.playerId || !state.playerName) return;
+  if (pendingUpsertTimer) return;
+  pendingUpsertTimer = setTimeout(async () => {
+    pendingUpsertTimer = null;
+    await upsertPlayer();
+  }, UPSERT_THROTTLE_MS);
+}
+
+async function upsertPlayer() {
+  if (!supabase || !state.playerId || !state.playerName) return;
+  try {
+    await supabase.from('players').upsert({
+      id: state.playerId,
+      nickname: state.playerName,
+      current_coins: state.coins,
+      lifetime_earned: state.lifetimeCoinsEarned || 0,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('player upsert failed', e);
+  }
+}
+
+// ----- Nickname modal -----
+const nickModalEl = document.getElementById('nick-modal');
+const nickInputEl = document.getElementById('nick-input');
+const nickSaveEl  = document.getElementById('nick-save');
+
+function isValidNickname(s) {
+  if (!s) return false;
+  const trimmed = s.trim();
+  return /^[A-Za-z0-9 _\-.]{2,24}$/.test(trimmed);
+}
+
+function openNickname(initial) {
+  nickInputEl.value = initial || state.playerName || '';
+  nickModalEl.classList.add('open');
+  setTimeout(() => nickInputEl.focus(), 50);
+}
+function closeNickname() {
+  nickModalEl.classList.remove('open');
+}
+
+nickSaveEl.onclick = async () => {
+  const raw = nickInputEl.value.trim();
+  if (!isValidNickname(raw)) {
+    flashMessage('Nickname must be 2–24 letters/numbers/spaces.');
+    return;
+  }
+  state.playerName = raw;
+  ensurePlayerId();
+  saveState();
+  closeNickname();
+  flashMessage(`Welcome, ${raw}! 🌱`);
+  if (supabase) {
+    await upsertPlayer();
+    refreshLeaderboardSelfRow();
+  }
+};
+nickInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') nickSaveEl.click(); });
+
+window.changeNickname = function () {
+  // Opened from inside the leaderboard modal
+  openNickname(state.playerName);
+};
+
+// Show the prompt on first launch (no name yet) unless Supabase is disabled
+function maybePromptNicknameOnLoad() {
+  ensurePlayerId();
+  if (!state.playerName && LEADERBOARD_ENABLED) {
+    openNickname('');
+  }
+}
+
+// ----- Leaderboard modal -----
+const lbModalEl   = document.getElementById('leaderboard-modal');
+const lbTabsEl    = document.getElementById('lb-tabs');
+const lbContentEl = document.getElementById('lb-content');
+const lbSelfNickEl = document.getElementById('lb-self-nick');
+let activeLbTab = 'now';
+
+window.openLeaderboard = function () {
+  if (!LEADERBOARD_ENABLED) {
+    lbContentEl.innerHTML = `<div class="lb-disabled-note">
+      The leaderboard hasn't been configured for this build yet.
+      To enable it, fill in <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code>
+      at the top of the script in <code>index.html</code>.
+    </div>`;
+    lbModalEl.classList.add('open');
+    return;
+  }
+  refreshLeaderboardSelfRow();
+  // Push current state before showing so your row is up-to-date
+  upsertPlayer();
+  flushEarnings();
+  renderLeaderboard();
+  lbModalEl.classList.add('open');
+};
+window.closeLeaderboard = function () { lbModalEl.classList.remove('open'); };
+
+function refreshLeaderboardSelfRow() {
+  lbSelfNickEl.textContent = state.playerName || '(no nickname yet)';
+}
+
+lbTabsEl.querySelectorAll('.store-tab').forEach(btn => {
+  btn.onclick = () => {
+    activeLbTab = btn.dataset.lb;
+    lbTabsEl.querySelectorAll('.store-tab').forEach(b => b.classList.toggle('active', b === btn));
+    renderLeaderboard();
+  };
+});
+
+async function fetchLeaderboardData(tab) {
+  if (!supabase) return [];
+  if (tab === 'now') {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, nickname, current_coins')
+      .order('current_coins', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return (data || []).map(r => ({ id: r.id, nickname: r.nickname, score: r.current_coins }));
+  }
+  if (tab === 'lifetime') {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, nickname, lifetime_earned')
+      .order('lifetime_earned', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return (data || []).map(r => ({ id: r.id, nickname: r.nickname, score: r.lifetime_earned }));
+  }
+  // Rolling time-window tabs use the SQL function
+  const hours = tab === 'day' ? 24 : tab === 'week' ? 24 * 7 : 24 * 30;
+  const { data, error } = await supabase.rpc('earnings_window', { window_hours: hours });
+  if (error) throw error;
+  return (data || []).map(r => ({ id: r.id, nickname: r.nickname, score: r.earned }));
+}
+
+async function renderLeaderboard() {
+  lbContentEl.innerHTML = `<div class="lb-loading">Loading…</div>`;
+  try {
+    const rows = await fetchLeaderboardData(activeLbTab);
+    if (rows.length === 0) {
+      lbContentEl.innerHTML = `<div class="lb-empty">No one's on this board yet. Be the first! 🌱</div>`;
+      return;
+    }
+    let html = '';
+    rows.forEach((r, i) => {
+      const rank = i + 1;
+      const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+      const meClass = r.id === state.playerId ? ' me' : '';
+      const nickSafe = (r.nickname || 'Anonymous').replace(/</g, '&lt;');
+      html += `
+        <div class="lb-row${meClass}">
+          <div class="rank ${rankClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`}</div>
+          <div class="nick">${nickSafe}</div>
+          <div class="score">🪙 ${(r.score ?? 0).toLocaleString()}</div>
+        </div>`;
+    });
+    const inTop = rows.some(r => r.id === state.playerId);
+    if (!inTop && state.playerName) {
+      html += `<div class="lb-self-rank">You're not in the top 20 of this board yet — keep playing to climb! 🌱</div>`;
+    }
+    lbContentEl.innerHTML = html;
+  } catch (e) {
+    console.warn('leaderboard query failed', e);
+    lbContentEl.innerHTML = `<div class="lb-empty">Couldn't load the leaderboard right now. Try again in a moment.</div>`;
+  }
+}
+
+// Push any pending earnings before the user closes the tab
+window.addEventListener('beforeunload', () => {
+  flushEarnings();
+  upsertPlayer();
+});
+
+/* ============================================================
+   TIME
+============================================================ */
+let speedMultiplier = 1;     // debug knob: 1 / 10 / 50 / 100
+let lastSpeedTick = Date.now();
+
+// "Game now" = real time + accumulated speed-warp boost.
+// timeAccelMs is persisted so the calendar/crops keep their advanced position across reloads.
+function gameNow() { return Date.now() + state.timeAccelMs; }
+
+function getGameTime() {
+  const elapsed = Math.max(0, gameNow() - state.gameEpochRealMs);
+  const totalDaysF = elapsed / REAL_MS_PER_GAME_DAY;
+  const totalDays  = Math.floor(totalDaysF);
+  const day        = (totalDays % 24) + 1;
+  const totalMonths = Math.floor(totalDays / 24);
+  const month      = (totalMonths % 12) + 1;
+  const year       = Math.floor(totalMonths / 12) + 1;
+  const season = month <= 3 ? 'Spring' : month <= 6 ? 'Summer' : month <= 9 ? 'Fall' : 'Winter';
+  // Sub-day clock: 24 game hours, 60 game minutes per hour (display only)
+  const dayFraction = totalDaysF - totalDays;
+  const totalGameMinutes = Math.floor(dayFraction * 24 * 60);
+  const hour   = Math.floor(totalGameMinutes / 60);
+  const minute = totalGameMinutes % 60;
+  return { day, month, year, season, hour, minute, totalDays, totalDaysF };
+}
+function formatRealTime(ms) {
+  if (ms <= 0) return 'ready';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return sec + 's';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ${sec % 60}s`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h ${min % 60}m`;
+}
+
+/* ============================================================
+   THREE.JS SCENE
+============================================================ */
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0xf5edd6);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5edd6);
+
+const aspect = window.innerWidth / window.innerHeight;
+const camera = new THREE.OrthographicCamera(-CAMERA_ZOOM * aspect, CAMERA_ZOOM * aspect, CAMERA_ZOOM, -CAMERA_ZOOM, 0.1, 200);
+camera.position.set(14, 14, 14);
+camera.lookAt(0, 0.5, 0);
+
+const ambient = new THREE.AmbientLight(0xffe9d6, 0.78);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xfff3da, 0.78);
+dirLight.position.set(8, 16, 6);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+const SH = 12;
+dirLight.shadow.camera.left = -SH; dirLight.shadow.camera.right = SH;
+dirLight.shadow.camera.top = SH;   dirLight.shadow.camera.bottom = -SH;
+dirLight.shadow.camera.near = 0.1; dirLight.shadow.camera.far = 60;
+dirLight.shadow.bias = -0.0008;
+scene.add(dirLight);
+
+const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.18);
+fillLight.position.set(-8, 6, -4);
+scene.add(fillLight);
+
+window.addEventListener('resize', () => {
+  const a = window.innerWidth / window.innerHeight;
+  camera.left = -CAMERA_ZOOM * a; camera.right = CAMERA_ZOOM * a;
+  camera.top  =  CAMERA_ZOOM;     camera.bottom = -CAMERA_ZOOM;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ============================================================
+   MATERIALS
+============================================================ */
+const MAT = {
+  soilBase:     new THREE.MeshLambertMaterial({ color: 0xd9b87a }),
+  grass:        new THREE.MeshLambertMaterial({ color: 0xa3c46e }),
+  grassDark:    new THREE.MeshLambertMaterial({ color: 0x88a85a }),
+  wall:         new THREE.MeshLambertMaterial({ color: 0xf5e4c5 }),
+  wallTrim:     new THREE.MeshLambertMaterial({ color: 0xb88a5a }),
+  foundation:   new THREE.MeshLambertMaterial({ color: 0xb8a070 }),
+  roof:         new THREE.MeshLambertMaterial({ color: 0xd96e2e }),
+  roofRidge:    new THREE.MeshLambertMaterial({ color: 0xa54417 }),
+  roofShadow:   new THREE.MeshLambertMaterial({ color: 0xb04a1c }),
+  door:         new THREE.MeshLambertMaterial({ color: 0x8b5a2b }),
+  doorWin:      new THREE.MeshLambertMaterial({ color: 0x7caab8 }),
+  windowFrame:  new THREE.MeshLambertMaterial({ color: 0xb88a5a }),
+  windowGlass:  new THREE.MeshLambertMaterial({ color: 0x6a92ad }),
+  shutter:      new THREE.MeshLambertMaterial({ color: 0x9a5a2e }),
+  flowerBox:    new THREE.MeshLambertMaterial({ color: 0x7a4f28 }),
+  ivy:          new THREE.MeshLambertMaterial({ color: 0x4a8a3a }),
+  trunk:        new THREE.MeshLambertMaterial({ color: 0x7a5230 }),
+  canopy:       new THREE.MeshLambertMaterial({ color: 0x5fa84f }),
+  canopyDark:   new THREE.MeshLambertMaterial({ color: 0x478a3a }),
+  fence:        new THREE.MeshLambertMaterial({ color: 0xc99668 }),
+  plotSoil:     new THREE.MeshLambertMaterial({ color: 0x8b5d3a }),
+  plotBorder:   new THREE.MeshLambertMaterial({ color: 0x6b4423 }),
+  chimney:      new THREE.MeshLambertMaterial({ color: 0xb84d2a }),
+  chimneyMortar:new THREE.MeshLambertMaterial({ color: 0xe8d4b0 }),
+  chimneyTop:   new THREE.MeshLambertMaterial({ color: 0xa0420a }),
+  smoke:        new THREE.MeshLambertMaterial({ color: 0xf5f0e8, transparent: true, opacity: 0.9 }),
+  stone:        new THREE.MeshLambertMaterial({ color: 0xd4c9a8 }),
+  sand:         new THREE.MeshLambertMaterial({ color: 0xe6cf9c }),
+  sandDark:     new THREE.MeshLambertMaterial({ color: 0xc8a96a }),
+  woodLog:      new THREE.MeshLambertMaterial({ color: 0x8a5a32 }),
+  mound:        new THREE.MeshLambertMaterial({ color: 0x6b4423 }),
+  cloud:        new THREE.MeshLambertMaterial({ color: 0xfffaf0 }),
+  sun:          new THREE.MeshBasicMaterial({ color: 0xffe07a }),
+  sunGlow:      new THREE.MeshBasicMaterial({ color: 0xffeaa0, transparent: true, opacity: 0.45 }),
+};
+
+/* ============================================================
+   DIORAMA BASE
+============================================================ */
+function makeRoundedRectShape(w, h, r) {
+  const s = new THREE.Shape();
+  const W = w/2, H = h/2;
+  s.moveTo(-W + r, -H);
+  s.lineTo( W - r, -H);
+  s.quadraticCurveTo( W, -H,  W, -H + r);
+  s.lineTo( W,  H - r);
+  s.quadraticCurveTo( W,  H,  W - r,  H);
+  s.lineTo(-W + r,  H);
+  s.quadraticCurveTo(-W,  H, -W,  H - r);
+  s.lineTo(-W, -H + r);
+  s.quadraticCurveTo(-W, -H, -W + r, -H);
+  return s;
+}
+
+let grassMesh;
+function makeDiorama() {
+  const group = new THREE.Group();
+
+  const soilShape = makeRoundedRectShape(8.6, 8.6, 1.05);
+  const soilGeo = new THREE.ExtrudeGeometry(soilShape, { depth: 0.7, bevelEnabled: true, bevelThickness: 0.14, bevelSize: 0.14, bevelSegments: 3 });
+  soilGeo.rotateX(-Math.PI / 2);
+  soilGeo.translate(0, -0.7, 0);
+  const soilBase = new THREE.Mesh(soilGeo, MAT.soilBase);
+  soilBase.receiveShadow = true;
+  group.add(soilBase);
+
+  const grassShape = makeRoundedRectShape(8.2, 8.2, 1.0);
+  const grassGeo = new THREE.ExtrudeGeometry(grassShape, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.04, bevelSegments: 2 });
+  grassGeo.rotateX(-Math.PI / 2);
+  grassGeo.translate(0, 0.05, 0);
+  grassMesh = new THREE.Mesh(grassGeo, MAT.grass.clone());
+  grassMesh.receiveShadow = true;
+  group.add(grassMesh);
+
+  return group;
+}
+
+/* ============================================================
+   SKY: clouds + sun
+============================================================ */
+function makeCloud(x, y, z, scale = 1) {
+  const group = new THREE.Group();
+  // Clumped overlapping spheres for a soft pillow shape
+  const blobs = [
+    [ 0.00, 0.00, 0,  0.55],
+    [ 0.45, 0.05, 0,  0.42],
+    [-0.42, 0.04, 0,  0.45],
+    [ 0.22, 0.18, 0,  0.38],
+    [-0.18, 0.20, 0,  0.36],
+    [ 0.05,-0.12, 0,  0.34],
+  ];
+  for (const [bx, by, bz, r] of blobs) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r * scale, 14, 14), MAT.cloud);
+    s.position.set(bx * scale, by * scale, bz * scale);
+    group.add(s);
+  }
+  group.position.set(x, y, z);
+  // Slow drift animation via userData
+  group.userData = { driftPhase: Math.random() * Math.PI * 2, baseX: x, baseY: y };
+  return group;
+}
+
+function makeSun(x, y, z, radius = 0.5) {
+  const group = new THREE.Group();
+  // Soft outer glow (clone so we can animate color per-sun without affecting the shared material)
+  const glowMat = MAT.sunGlow.clone();
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.55, 24, 24), glowMat);
+  group.add(glow);
+  const coreMat = MAT.sun.clone();
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 24), coreMat);
+  group.add(sun);
+  group.position.set(x, y, z);
+  group.userData = { coreMat, glowMat };
+  return group;
+}
+
+function makeMoon(x, y, z, radius = 0.42) {
+  const group = new THREE.Group();
+  // Soft pale-blue halo
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xc8d6ff, transparent: true, opacity: 0.32 });
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.55, 20, 20), glowMat);
+  group.add(glow);
+  // Moon body — soft cream-white
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xfdf3df });
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 24), coreMat);
+  group.add(moon);
+  // A few darker craters dappled on the front face
+  const craterMat = new THREE.MeshBasicMaterial({ color: 0xd6c8a8 });
+  const craters = [
+    [ 0.18,  0.10, 0.07],
+    [-0.22,  0.05, 0.05],
+    [ 0.05, -0.18, 0.06],
+    [-0.10, -0.10, 0.045],
+    [ 0.15,  0.20, 0.04],
+  ];
+  for (const [cx, cy, cr] of craters) {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(cr, 8, 8), craterMat);
+    c.position.set(cx * radius * 0.9, cy * radius * 0.9, radius * 0.92);
+    group.add(c);
+  }
+  group.position.set(x, y, z);
+  group.userData = { coreMat, glowMat };
+  return group;
+}
+
+/* ============================================================
+   HOUSE
+============================================================ */
+let smokeGroup;
+
+// Tile-row ridges sitting on the gabled roof slopes.
+function addRoofTileRows(parent, W, RH, D, baseY, numRows = 5) {
+  const eaveX = W / 2 + 0.28;
+  const L = Math.sqrt(eaveX * eaveX + RH * RH);
+  for (let side of [1, -1]) {
+    // Up-slope unit vector and outward normal for this side
+    const ux = -side * eaveX / L;
+    const uy = RH / L;
+    const nx = side * RH / L;
+    const ny = eaveX / L;
+    const slopeAngle = Math.atan2(uy, ux);
+    for (let i = 1; i < numRows; i++) {
+      const t = i / numRows;                       // 0=eave, 1=ridge
+      const px = side * eaveX * (1 - t);
+      const py = t * RH;
+      const offset = 0.035;
+      const ridge = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, 0.05, D + 0.62),
+        MAT.roofShadow
+      );
+      ridge.position.set(px + nx * offset, py + ny * offset + baseY, 0);
+      ridge.rotation.z = slopeAngle;
+      ridge.castShadow = true;
+      parent.add(ridge);
+    }
+  }
+  // Ridge cap (cylinder running along the gable apex, depth axis)
+  const cap = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.085, 0.085, D + 0.66, 16),
+    MAT.roofRidge
+  );
+  cap.rotation.x = Math.PI / 2;
+  cap.position.set(0, baseY + RH + 0.01, 0);
+  cap.castShadow = true;
+  parent.add(cap);
+}
+function makeHouse() {
+  const group = new THREE.Group();
+  const W = 2.4, H = 1.5, D = 2.0;
+
+  // Stone foundation
+  const foundation = new THREE.Mesh(new THREE.BoxGeometry(W + 0.16, 0.2, D + 0.16), MAT.foundation);
+  foundation.position.y = 0.1;
+  foundation.castShadow = true; foundation.receiveShadow = true;
+  group.add(foundation);
+
+  // Walls
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), MAT.wall);
+  walls.position.y = H / 2 + 0.2;
+  walls.castShadow = true; walls.receiveShadow = true;
+  group.add(walls);
+
+  // Roof base (extruded gabled triangle)
+  const RW = W / 2 + 0.28;
+  const RH = 1.05;
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-RW, 0);
+  roofShape.lineTo( RW, 0);
+  roofShape.lineTo( 0,  RH);
+  roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: D + 0.55, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 1 });
+  const roof = new THREE.Mesh(roofGeo, MAT.roof);
+  roof.position.set(0, H + 0.2, -(D + 0.55) / 2);
+  roof.castShadow = true; roof.receiveShadow = true;
+  group.add(roof);
+
+  // Eave trim (the underside band along the eave edges)
+  for (let side of [1, -1]) {
+    const eave = new THREE.Mesh(
+      new THREE.BoxGeometry(D + 0.62, 0.07, 0.10),
+      MAT.roofRidge
+    );
+    eave.rotation.y = Math.PI / 2;
+    eave.position.set(side * RW * 0.99, H + 0.2 - 0.005, 0);
+    group.add(eave);
+  }
+
+  // Tile rows + ridge cap on the gabled roof
+  addRoofTileRows(group, W, RH, D, H + 0.2, 5);
+
+  // Door
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.86, 0.06), MAT.door);
+  door.position.set(0, 0.52, D / 2 + 0.03);
+  group.add(door);
+  // small round window in door
+  const doorWin = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 16), MAT.doorWin);
+  doorWin.rotation.x = Math.PI / 2;
+  doorWin.position.set(0, 0.78, D / 2 + 0.07);
+  group.add(doorWin);
+  const doorWinFrame = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.018, 8, 18), MAT.windowFrame);
+  doorWinFrame.position.set(0, 0.78, D / 2 + 0.07);
+  group.add(doorWinFrame);
+  // arch trim above door
+  const archTop = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.05), MAT.wallTrim);
+  archTop.position.set(0, 1.00, D / 2 + 0.04);
+  group.add(archTop);
+  // knob
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 10), new THREE.MeshLambertMaterial({ color: 0xeac866 }));
+  knob.position.set(0.18, 0.5, D / 2 + 0.07);
+  group.add(knob);
+  // step
+  const step = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.09, 0.28), MAT.foundation);
+  step.position.set(0, 0.05, D / 2 + 0.2);
+  step.castShadow = true; step.receiveShadow = true;
+  group.add(step);
+
+  // Front windows with shutters + flower boxes
+  function frontWindow(x) {
+    // sill
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.05, 0.10), MAT.wallTrim);
+    sill.position.set(x, 0.87, D / 2 + 0.045);
+    group.add(sill);
+    // frame
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.52, 0.05), MAT.windowFrame);
+    frame.position.set(x, 1.14, D / 2 + 0.025);
+    group.add(frame);
+    // glass
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.06), MAT.windowGlass);
+    glass.position.set(x, 1.14, D / 2 + 0.03);
+    group.add(glass);
+    // mullions (cross)
+    const vbar = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.42, 0.07), MAT.windowFrame);
+    vbar.position.set(x, 1.14, D / 2 + 0.035);
+    group.add(vbar);
+    const hbar = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.045, 0.07), MAT.windowFrame);
+    hbar.position.set(x, 1.14, D / 2 + 0.035);
+    group.add(hbar);
+    // shutters
+    for (let side of [-1, 1]) {
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.04), MAT.shutter);
+      sh.position.set(x + side * 0.34, 1.14, D / 2 + 0.025);
+      group.add(sh);
+      // slats
+      for (let row = -1; row <= 1; row++) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.02, 0.05), MAT.windowFrame);
+        slat.position.set(x + side * 0.34, 1.14 + row * 0.13, D / 2 + 0.046);
+        group.add(slat);
+      }
+    }
+    // flower box
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.10, 0.13), MAT.flowerBox);
+    box.position.set(x, 0.81, D / 2 + 0.10);
+    box.castShadow = true;
+    group.add(box);
+    // tiny petals popping out
+    const petalColors = [0xf0a8c0, 0xfff8e0, 0xf08570, 0xf5d44a];
+    for (let i = 0; i < 5; i++) {
+      const ofx = (i - 2) * 0.12;
+      // greenery
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), MAT.canopy);
+      leaf.position.set(x + ofx, 0.89, D / 2 + 0.13);
+      group.add(leaf);
+      // petal
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.04, 8, 8),
+        new THREE.MeshLambertMaterial({ color: petalColors[i % petalColors.length] })
+      );
+      petal.position.set(x + ofx, 0.94, D / 2 + 0.13);
+      group.add(petal);
+    }
+  }
+  frontWindow(-0.78);
+  frontWindow( 0.78);
+
+  // Brick chimney with mortar lines
+  const chimneyH = 0.95;
+  const chimneyBase = H + 0.2 + chimneyH / 2 + 0.22;
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.32, chimneyH, 0.32), MAT.chimney);
+  chimney.position.set(0.6, chimneyBase, -0.25);
+  chimney.castShadow = true;
+  group.add(chimney);
+  // horizontal mortar lines (3 of them)
+  for (let i = 0; i < 4; i++) {
+    const y = chimneyBase - chimneyH / 2 + 0.15 + i * 0.2;
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.025, 0.34), MAT.chimneyMortar);
+    line.position.set(0.6, y, -0.25);
+    group.add(line);
+  }
+  // a couple vertical mortar dashes alternating per row
+  for (let i = 0; i < 4; i++) {
+    const y = chimneyBase - chimneyH / 2 + 0.05 + i * 0.2;
+    const xoff = (i % 2 === 0) ? -0.08 : 0.08;
+    const v = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.10, 0.34), MAT.chimneyMortar);
+    v.position.set(0.6 + xoff, y, -0.25);
+    group.add(v);
+  }
+  // chimney cap
+  const chimneyTop = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.42), MAT.chimneyTop);
+  chimneyTop.position.set(0.6, H + 0.2 + chimneyH + 0.28, -0.25);
+  chimneyTop.castShadow = true;
+  group.add(chimneyTop);
+
+  // Climbing ivy on the left wall corner
+  const ivyClumps = [
+    [-W/2 - 0.01, 0.35, 0.25, 0.16],
+    [-W/2 - 0.01, 0.55, 0.10, 0.13],
+    [-W/2 - 0.01, 0.75,-0.05, 0.15],
+    [-W/2 - 0.01, 1.00, 0.15, 0.14],
+    [-W/2 - 0.01, 1.20,-0.10, 0.12],
+    [-W/2 - 0.01, 1.40, 0.05, 0.13],
+    [-W/2 - 0.05, 0.50, 0.40, 0.14],
+    [-W/2 - 0.05, 0.85, 0.35, 0.13],
+  ];
+  for (const [ix, iy, iz, ir] of ivyClumps) {
+    const v = new THREE.Mesh(new THREE.SphereGeometry(ir, 10, 10), MAT.ivy);
+    v.position.set(ix, iy, iz);
+    v.scale.set(0.6, 1.0, 1.0);
+    v.castShadow = true;
+    group.add(v);
+  }
+
+  // Smoke puffs
+  smokeGroup = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const m = MAT.smoke.clone();
+    m.opacity = 0.85 - i * 0.18;
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.18 + i * 0.06, 12, 12), m);
+    s.userData.base = { y: H + 0.2 + chimneyH + 0.55 + i * 0.35, phase: i * 0.7 };
+    s.position.set(0.6, s.userData.base.y, -0.25);
+    smokeGroup.add(s);
+  }
+  group.add(smokeGroup);
+
+  return group;
+}
+
+/* ============================================================
+   TREES (rounded toy-like)
+============================================================ */
+function makeTree(scale = 1) {
+  const group = new THREE.Group();
+  const trunkH = 0.9 * scale;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13 * scale, 0.18 * scale, trunkH, 14), MAT.trunk);
+  trunk.position.y = trunkH / 2;
+  trunk.castShadow = true; trunk.receiveShadow = true;
+  group.add(trunk);
+
+  // Big central canopy sphere — uniform "cotton ball"
+  const canopyY = trunkH + 0.55 * scale;
+  const main = new THREE.Mesh(new THREE.SphereGeometry(0.78 * scale, 20, 20), MAT.canopy);
+  main.position.y = canopyY;
+  main.castShadow = true;
+  group.add(main);
+  // Subtle bump spheres for soft asymmetry (not too clumpy)
+  const bumps = [
+    [ 0.45, 0.15, 0.10, 0.34],
+    [-0.40, 0.10,-0.10, 0.36],
+    [ 0.05, 0.45, 0.20, 0.32],
+  ];
+  for (const [x, y, z, r] of bumps) {
+    const useDark = Math.random() < 0.35;
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r * scale, 14, 14), useDark ? MAT.canopyDark : MAT.canopy);
+    s.position.set(x * scale, canopyY + y * scale, z * scale);
+    s.castShadow = true;
+    group.add(s);
+  }
+  return group;
+}
+
+/* ============================================================
+   FENCE
+============================================================ */
+function makeFenceSegment(length, vertical = false) {
+  const group = new THREE.Group();
+  const numPosts = Math.max(2, Math.floor(length / 0.65) + 1);
+  for (let i = 0; i < numPosts; i++) {
+    const t = i / (numPosts - 1);
+    const offset = (t - 0.5) * length;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), MAT.fence);
+    if (vertical) post.position.set(0, 0.25, offset);
+    else          post.position.set(offset, 0.25, 0);
+    post.castShadow = true;
+    group.add(post);
+    const top = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.08, 4), MAT.fence);
+    top.position.copy(post.position); top.position.y += 0.3;
+    top.rotation.y = Math.PI / 4;
+    group.add(top);
+  }
+  for (const y of [0.18, 0.36]) {
+    const beam = new THREE.Mesh(
+      new THREE.BoxGeometry(vertical ? 0.05 : length, 0.05, vertical ? length : 0.05),
+      MAT.fence
+    );
+    beam.position.y = y;
+    beam.castShadow = true;
+    group.add(beam);
+  }
+  return group;
+}
+
+/* ============================================================
+   FLOWERS / BUSHES / LOGS
+============================================================ */
+function makeFlower(x, z, color) {
+  const group = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.14, 5), MAT.canopy);
+  stem.position.y = 0.07 + 0.1;
+  group.add(stem);
+  const petal = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), new THREE.MeshLambertMaterial({ color }));
+  petal.position.y = 0.16 + 0.1;
+  group.add(petal);
+  const center = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), new THREE.MeshLambertMaterial({ color: 0xf5d44a }));
+  center.position.y = 0.16 + 0.1;
+  group.add(center);
+  group.position.set(x, 0, z);
+  return group;
+}
+
+function makeBush(x, z, scale = 1) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22 * scale + Math.random() * 0.06, 12, 12),
+      i % 2 === 0 ? MAT.canopy : MAT.canopyDark
+    );
+    s.position.set((i - 1) * 0.16 * scale, 0.2 * scale + 0.1, (Math.random() - 0.5) * 0.1);
+    s.castShadow = true;
+    group.add(s);
+  }
+  group.position.set(x, 0, z);
+  return group;
+}
+
+function makeLogPile(x, z) {
+  const group = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.45, 10), MAT.woodLog);
+    log.rotation.z = Math.PI / 2;
+    log.position.set(0, 0.1 + (i % 2) * 0.16, i === 2 ? 0.08 : -0.08);
+    log.castShadow = true;
+    group.add(log);
+  }
+  group.position.set(x, 0, z);
+  return group;
+}
+
+/* ============================================================
+   CHICKEN COOP (and chickens)
+============================================================ */
+function makeChicken() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xfaf3e0 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), bodyMat);
+  body.scale.set(1.3, 0.95, 1);
+  body.castShadow = true;
+  group.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 10), bodyMat);
+  head.position.set(0.13, 0.09, 0);
+  head.castShadow = true;
+  group.add(head);
+  // Comb (red)
+  const comb = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), new THREE.MeshLambertMaterial({ color: 0xc83030 }));
+  comb.position.set(0.13, 0.17, 0);
+  comb.scale.set(0.7, 1, 0.7);
+  group.add(comb);
+  // Beak (orange)
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 6), new THREE.MeshLambertMaterial({ color: 0xf0a830 }));
+  beak.position.set(0.20, 0.09, 0);
+  beak.rotation.z = -Math.PI / 2;
+  group.add(beak);
+  // Tail tuft
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), bodyMat);
+  tail.position.set(-0.12, 0.07, 0);
+  tail.scale.set(1, 1.2, 1);
+  group.add(tail);
+  return group;
+}
+
+function makeChickenCoop() {
+  const group = new THREE.Group();
+  const woodLight = new THREE.MeshLambertMaterial({ color: 0xc09060 });
+  const woodDark  = new THREE.MeshLambertMaterial({ color: 0x8a5a32 });
+  const roofMat   = new THREE.MeshLambertMaterial({ color: 0xc04525 });
+
+  // Wooden platform/floor (~2.2×2.2)
+  const platform = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.10, 2.2), woodDark);
+  platform.position.y = 0.05;
+  platform.receiveShadow = true; platform.castShadow = true;
+  group.add(platform);
+
+  // Floor planks (subtle ridges across top of platform)
+  for (let i = -2; i <= 2; i++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(2.18, 0.012, 0.08), woodLight);
+    plank.position.set(0, 0.105, i * 0.4);
+    group.add(plank);
+  }
+
+  // Hut: back-left of platform
+  const hutW = 1.0, hutH = 0.75, hutD = 0.85;
+  const hutCx = -0.45, hutCz = -0.5;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(hutW, hutH, hutD), woodLight);
+  walls.position.set(hutCx, 0.10 + hutH / 2, hutCz);
+  walls.castShadow = true; walls.receiveShadow = true;
+  group.add(walls);
+
+  // Vertical plank ridges on walls
+  for (let i = -2; i <= 2; i++) {
+    const v = new THREE.Mesh(new THREE.BoxGeometry(0.02, hutH * 0.85, 0.04), woodDark);
+    v.position.set(hutCx + i * 0.2, 0.10 + hutH / 2, hutCz + hutD / 2 + 0.015);
+    group.add(v);
+  }
+
+  // Gabled roof
+  const roofShape = new THREE.Shape();
+  const rw = hutW / 2 + 0.18;
+  const rh = 0.42;
+  roofShape.moveTo(-rw, 0);
+  roofShape.lineTo( rw, 0);
+  roofShape.lineTo(  0, rh);
+  roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: hutD + 0.3, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1 });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(hutCx, 0.10 + hutH, hutCz - (hutD + 0.3) / 2);
+  roof.castShadow = true; roof.receiveShadow = true;
+  group.add(roof);
+
+  // Ridge cap
+  const ridgeCap = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, hutD + 0.34, 12), new THREE.MeshLambertMaterial({ color: 0x962e15 }));
+  ridgeCap.rotation.x = Math.PI / 2;
+  ridgeCap.position.set(hutCx, 0.10 + hutH + rh, hutCz);
+  group.add(ridgeCap);
+
+  // Round entrance hole (dark)
+  const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.05, 16), new THREE.MeshLambertMaterial({ color: 0x2a1a0a }));
+  hole.rotation.x = Math.PI / 2;
+  hole.position.set(hutCx, 0.10 + 0.22, hutCz + hutD / 2 + 0.025);
+  group.add(hole);
+
+  // Ramp from platform down to grass at front
+  const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.6), woodDark);
+  ramp.position.set(hutCx, 0.05, hutCz + hutD / 2 + 0.35);
+  ramp.rotation.x = -0.2;
+  ramp.castShadow = true;
+  group.add(ramp);
+
+  // Feed trough (front-right of platform)
+  const trough = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.18), woodDark);
+  trough.position.set(0.55, 0.14, 0.5);
+  trough.castShadow = true;
+  group.add(trough);
+  const feed = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.14), new THREE.MeshLambertMaterial({ color: 0xd9b87a }));
+  feed.position.set(0.55, 0.19, 0.5);
+  group.add(feed);
+
+  // Three chickens scattered on the platform — references stored for animation
+  const chickenInits = [
+    [ 0.55,  0.10, 0.6 ],
+    [ 0.30, -0.55, 2.2 ],
+    [-0.10,  0.65, 4.0 ],
+  ];
+  const chickens = [];
+  for (const [cx, cz, cr] of chickenInits) {
+    const c = makeChicken();
+    c.position.set(cx, 0.18, cz);
+    c.rotation.y = cr;
+    group.add(c);
+    chickens.push({
+      mesh: c,
+      state: 'wandering',                     // 'wandering' | 'going_home' | 'sleeping'
+      target: pickChickenWanderTarget(),
+      speed: 0.30 + Math.random() * 0.18,     // platform-local units per second
+      bobPhase: Math.random() * Math.PI * 2,
+    });
+  }
+  group.userData.chickens = chickens;
+
+  return group;
+}
+
+// Random wander target on the FRONT half of the platform (avoids the hut footprint
+// at local x≈[-0.95..0.05], z≈[-0.925..-0.075]).
+function pickChickenWanderTarget() {
+  // Wander x in [-0.55, 0.95], z in [-0.05, 0.95] — the open area in front of the hut
+  const x = -0.55 + Math.random() * 1.50;
+  const z = -0.05 + Math.random() * 1.00;
+  return { x, z };
+}
+
+// Position right outside the hut entrance (chickens path here before disappearing inside at night)
+const COOP_ENTRANCE_LOCAL = { x: -0.45, z: -0.04 };
+
+function updateChickens(realDt) {
+  if (!coopMesh || !coopMesh.userData.chickens) return;
+  const chickens = coopMesh.userData.chickens;
+  // Strict clock-based schedule: chickens out 07:00–19:00, in coop otherwise.
+  const t = getGameTime();
+  const tod = t.totalDaysF - Math.floor(t.totalDaysF);
+  const hour = tod * 24;
+  const isDay = hour >= 7 && hour < 19;
+
+  for (const ch of chickens) {
+    // === State transitions ===
+    if (isDay && ch.state === 'sleeping') {
+      // 07:00 reached — emerge from the hut entrance and start wandering
+      ch.mesh.visible = true;
+      ch.mesh.position.set(COOP_ENTRANCE_LOCAL.x, 0.18, COOP_ENTRANCE_LOCAL.z);
+      ch.state = 'wandering';
+      ch.target = pickChickenWanderTarget();
+    }
+    if (!isDay && ch.state === 'wandering') {
+      // 19:00 reached — start heading home
+      ch.state = 'going_home';
+      ch.target = { ...COOP_ENTRANCE_LOCAL };
+    }
+
+    // Force-snap to sleeping if night is well underway and a chicken is still outside.
+    // This handles fast time-warps (at 100×, a game hour is 0.72 real seconds, so a chicken
+    // mid-walk at 19:00 won't have time to finish the trip before deep night arrives).
+    if (!isDay && ch.state !== 'sleeping' && (hour >= 20 || hour < 6)) {
+      ch.mesh.visible = false;
+      ch.state = 'sleeping';
+      continue;
+    }
+    if (ch.state === 'sleeping') {
+      ch.mesh.visible = false;
+      continue;
+    }
+
+    // === Movement toward target ===
+    const dx = ch.target.x - ch.mesh.position.x;
+    const dz = ch.target.z - ch.mesh.position.z;
+    const dist = Math.hypot(dx, dz);
+
+    if (dist < 0.04) {
+      // Reached target
+      if (ch.state === 'going_home') {
+        // Disappear into the hut
+        ch.mesh.visible = false;
+        ch.state = 'sleeping';
+        continue;
+      } else {
+        // Pick a new wander target (after a tiny "pause" implied by movement to a nearby spot)
+        ch.target = pickChickenWanderTarget();
+      }
+    } else {
+      const step = Math.min(dist, ch.speed * realDt);
+      ch.mesh.position.x += (dx / dist) * step;
+      ch.mesh.position.z += (dz / dist) * step;
+      // Face the direction of motion (heads point along +X in local mesh)
+      ch.mesh.rotation.y = Math.atan2(dx, dz) - Math.PI / 2;
+    }
+
+    // Subtle peck bob
+    ch.mesh.position.y = 0.18 + Math.sin(performance.now() * 0.004 + ch.bobPhase) * 0.012;
+  }
+}
+
+/* ============================================================
+   DECORATIONS — one factory function per type
+============================================================ */
+function decoFence() {
+  const group = new THREE.Group();
+  const white = new THREE.MeshLambertMaterial({ color: 0xfbf6e8 });
+  // 3 segments of picket fence
+  for (let s = 0; s < 3; s++) {
+    const xo = (s - 1) * 0.45;
+    // 4 pickets per segment
+    for (let i = 0; i < 4; i++) {
+      const picket = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.04), white);
+      picket.position.set(xo + (i - 1.5) * 0.12, 0.18, 0);
+      picket.castShadow = true;
+      group.add(picket);
+      // pointed top
+      const top = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.07, 4), white);
+      top.position.set(picket.position.x, 0.38, 0);
+      top.rotation.y = Math.PI / 4;
+      group.add(top);
+    }
+    // horizontal rails
+    for (const y of [0.13, 0.27]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.04, 0.03), white);
+      rail.position.set(xo, y, 0);
+      group.add(rail);
+    }
+  }
+  return group;
+}
+
+function decoArch() {
+  const group = new THREE.Group();
+  const wood = new THREE.MeshLambertMaterial({ color: 0xb98a5a });
+  // Two posts
+  for (const x of [-0.35, 0.35]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.95, 0.07), wood);
+    post.position.set(x, 0.475, 0);
+    post.castShadow = true;
+    group.add(post);
+  }
+  // Curved top (use a half-torus to suggest the arch)
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.05, 8, 18, Math.PI), wood);
+  arch.position.y = 0.95;
+  arch.castShadow = true;
+  group.add(arch);
+  // Climbing flowers along the arch
+  const flowerColors = [0xf0a8c0, 0xfff8e0, 0xc0a8e0, 0xf08570];
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 8) * Math.PI;
+    const r = 0.36;
+    const flower = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 8, 8),
+      new THREE.MeshLambertMaterial({ color: flowerColors[i % flowerColors.length] })
+    );
+    flower.position.set(-Math.cos(a) * r, 0.95 + Math.sin(a) * r, 0.05);
+    group.add(flower);
+  }
+  // Leaves at the base
+  for (const x of [-0.35, 0.35]) {
+    for (let i = 0; i < 3; i++) {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), MAT.canopy);
+      leaf.position.set(x + (Math.random() - 0.5) * 0.1, 0.08 + i * 0.08, (Math.random() - 0.5) * 0.06);
+      leaf.scale.set(1.3, 0.5, 1);
+      group.add(leaf);
+    }
+  }
+  return group;
+}
+
+function decoGnome() {
+  const group = new THREE.Group();
+  // Body (blue robe)
+  const body = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.20, 12), new THREE.MeshLambertMaterial({ color: 0x4878b8 }));
+  body.position.y = 0.10;
+  body.castShadow = true;
+  group.add(body);
+  // Head (skin)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), new THREE.MeshLambertMaterial({ color: 0xf2c8a8 }));
+  head.position.y = 0.24;
+  group.add(head);
+  // Beard (white)
+  const beard = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), new THREE.MeshLambertMaterial({ color: 0xf8f3e8 }));
+  beard.position.set(0, 0.21, 0.04);
+  beard.scale.set(1, 1.2, 0.8);
+  group.add(beard);
+  // Red pointed hat
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.085, 0.18, 14), new THREE.MeshLambertMaterial({ color: 0xc83020 }));
+  hat.position.y = 0.36;
+  group.add(hat);
+  return group;
+}
+
+function decoPumpkin() {
+  const group = new THREE.Group();
+  const pMat = new THREE.MeshLambertMaterial({ color: 0xe07a25 });
+  const stemMat = new THREE.MeshLambertMaterial({ color: 0x4a8a3a });
+  const positions = [
+    [ 0,    0,    0.14],
+    [-0.18, 0,    0.12],
+    [ 0.16, 0,    0.13],
+  ];
+  for (const [x, z, r] of positions) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 12), pMat);
+    p.position.set(x, r * 0.9, z);
+    p.scale.set(1, 0.85, 1);
+    p.castShadow = true;
+    group.add(p);
+    // Ridges
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.012, r * 1.5, 0.012), new THREE.MeshLambertMaterial({ color: 0xc06515 }));
+      ridge.position.set(x + Math.cos(a) * r * 0.85, r * 0.9, z + Math.sin(a) * r * 0.85);
+      group.add(ridge);
+    }
+    // Stem
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.06, 6), stemMat);
+    stem.position.set(x, r * 1.55, z);
+    group.add(stem);
+  }
+  return group;
+}
+
+function decoBench() {
+  const group = new THREE.Group();
+  const wood = new THREE.MeshLambertMaterial({ color: 0x8a5a32 });
+  // Seat
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, 0.30), wood);
+  seat.position.y = 0.25;
+  seat.castShadow = true; seat.receiveShadow = true;
+  group.add(seat);
+  // Backrest
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.30, 0.05), wood);
+  back.position.set(0, 0.42, -0.12);
+  back.castShadow = true;
+  group.add(back);
+  // Back slats
+  for (let i = 0; i < 3; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.03), wood);
+    slat.position.set((i - 1) * 0.30, 0.42, -0.10);
+    group.add(slat);
+  }
+  // Legs
+  for (const sx of [-0.42, 0.42]) {
+    for (const sz of [-0.10, 0.10]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.25, 0.05), wood);
+      leg.position.set(sx, 0.125, sz);
+      leg.castShadow = true;
+      group.add(leg);
+    }
+  }
+  return group;
+}
+
+function decoBirdBath() {
+  const group = new THREE.Group();
+  const stone = new THREE.MeshLambertMaterial({ color: 0xd0c7b0 });
+  // Pillar base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.24, 0.08, 14), stone);
+  base.position.y = 0.04;
+  base.castShadow = true; base.receiveShadow = true;
+  group.add(base);
+  // Stem
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.10, 0.4, 12), stone);
+  stem.position.y = 0.28;
+  stem.castShadow = true;
+  group.add(stem);
+  // Bowl
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 0.08, 16), stone);
+  bowl.position.y = 0.52;
+  bowl.castShadow = true;
+  group.add(bowl);
+  // Water surface
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 16), new THREE.MeshLambertMaterial({ color: 0x6aa8d4 }));
+  water.position.y = 0.57;
+  group.add(water);
+  // Tiny bird
+  const bird = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), new THREE.MeshLambertMaterial({ color: 0x4a78a8 }));
+  bird.position.set(0.14, 0.60, 0);
+  group.add(bird);
+  return group;
+}
+
+function decoLantern() {
+  const group = new THREE.Group();
+  const post = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+  const glass = new THREE.MeshBasicMaterial({ color: 0xffe4a0 });
+  // Tall post
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.85, 8), post);
+  p.position.y = 0.425;
+  p.castShadow = true;
+  group.add(p);
+  // Top arm
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.16), post);
+  arm.position.set(0, 0.84, 0);
+  group.add(arm);
+  // Lantern body
+  const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.14), post);
+  lantern.position.set(0, 0.74, 0);
+  group.add(lantern);
+  // Lantern glow (warm yellow)
+  const lglow = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.10), glass);
+  lglow.position.set(0, 0.74, 0);
+  group.add(lglow);
+  // Lantern cap
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.10, 0.06, 4), post);
+  cap.position.set(0, 0.86, 0);
+  cap.rotation.y = Math.PI / 4;
+  group.add(cap);
+  // Base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.06, 12), post);
+  base.position.y = 0.03;
+  group.add(base);
+  return group;
+}
+
+function decoScarecrow() {
+  const group = new THREE.Group();
+  const stick = new THREE.MeshLambertMaterial({ color: 0x6a4a25 });
+  const cloth = new THREE.MeshLambertMaterial({ color: 0x8a4d2a });
+  const straw = new THREE.MeshLambertMaterial({ color: 0xeac658 });
+  // Vertical post
+  const vpost = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 8), stick);
+  vpost.position.y = 0.5;
+  vpost.castShadow = true;
+  group.add(vpost);
+  // Horizontal arms
+  const arms = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.8, 8), stick);
+  arms.position.y = 0.75;
+  arms.rotation.z = Math.PI / 2;
+  arms.castShadow = true;
+  group.add(arms);
+  // Body / shirt
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.12), cloth);
+  body.position.y = 0.55;
+  body.castShadow = true;
+  group.add(body);
+  // Head (burlap sack)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), straw);
+  head.position.y = 0.92;
+  head.scale.set(1, 1.1, 1);
+  head.castShadow = true;
+  group.add(head);
+  // Eyes (dark dots)
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x202020 });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
+  eyeL.position.set(-0.04, 0.94, 0.11);
+  group.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat);
+  eyeR.position.set( 0.04, 0.94, 0.11);
+  group.add(eyeR);
+  // Stitched mouth
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.005), eyeMat);
+  mouth.position.set(0, 0.89, 0.12);
+  group.add(mouth);
+  // Hat (a wide-brimmed dark hat)
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.025, 16), new THREE.MeshLambertMaterial({ color: 0x4a3018 }));
+  brim.position.y = 1.04;
+  group.add(brim);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.12, 14), new THREE.MeshLambertMaterial({ color: 0x4a3018 }));
+  crown.position.y = 1.11;
+  group.add(crown);
+  // Straw poking out from sleeves
+  for (const x of [-0.42, 0.42]) {
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.Mesh(new THREE.ConeGeometry(0.015, 0.10, 5), straw);
+      s.position.set(x + (Math.random() - 0.5) * 0.05, 0.70, (i - 1) * 0.03);
+      s.rotation.z = (Math.random() - 0.5) * 0.4;
+      group.add(s);
+    }
+  }
+  return group;
+}
+
+function decoWell() {
+  const group = new THREE.Group();
+  const stone = new THREE.MeshLambertMaterial({ color: 0xa0907a });
+  const wood = new THREE.MeshLambertMaterial({ color: 0x8a5a32 });
+  const roofMat = new THREE.MeshLambertMaterial({ color: 0x6a4a32 });
+  // Cylinder well body
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.45, 18), stone);
+  body.position.y = 0.225;
+  body.castShadow = true; body.receiveShadow = true;
+  group.add(body);
+  // Top stone rim
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.06, 18), new THREE.MeshLambertMaterial({ color: 0x807060 }));
+  rim.position.y = 0.48;
+  group.add(rim);
+  // Dark water inside
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 16), new THREE.MeshLambertMaterial({ color: 0x1c3a55 }));
+  water.position.y = 0.50;
+  group.add(water);
+  // Two posts holding the roof
+  for (const x of [-0.28, 0.28]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 0.05), wood);
+    post.position.set(x, 0.78, 0);
+    post.castShadow = true;
+    group.add(post);
+  }
+  // Crossbeam with rope
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 8), wood);
+  beam.position.set(0, 0.96, 0);
+  beam.rotation.z = Math.PI / 2;
+  group.add(beam);
+  // Rope dangling
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.18, 6), new THREE.MeshLambertMaterial({ color: 0xc8a878 }));
+  rope.position.set(0, 0.87, 0);
+  group.add(rope);
+  // Bucket
+  const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.08, 12), wood);
+  bucket.position.set(0, 0.76, 0);
+  group.add(bucket);
+  // Gable roof
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-0.40, 0);
+  roofShape.lineTo( 0.40, 0);
+  roofShape.lineTo( 0, 0.22);
+  roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 0.55, bevelEnabled: false });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(0, 1.02, -0.275);
+  roof.castShadow = true;
+  group.add(roof);
+  return group;
+}
+
+function makeDecoration(type) {
+  switch (type) {
+    case 'fence':     return decoFence();
+    case 'arch':      return decoArch();
+    case 'gnome':     return decoGnome();
+    case 'pumpkin':   return decoPumpkin();
+    case 'bench':     return decoBench();
+    case 'birdbath':  return decoBirdBath();
+    case 'lantern':   return decoLantern();
+    case 'scarecrow': return decoScarecrow();
+    case 'well':      return decoWell();
+    default: return null;
+  }
+}
+
+// Wide sandy/dirt path from door area down toward the plots,
+// composed of overlapping flat ovals to suggest a worn footpath.
+function makeSandyPath() {
+  const group = new THREE.Group();
+  // (x, z, radius, scaleZ, rotY, darker?)
+  const segments = [
+    [-1.5, -1.05, 0.42, 1.0, 0,    false],
+    [-1.4, -0.55, 0.44, 1.1, 0.1,  false],
+    [-1.25,-0.05, 0.46, 1.15,0.2,  false],
+    [-1.05, 0.45, 0.46, 1.1, 0.35, false],
+    [-0.75, 0.85, 0.46, 1.0, 0.6,  false],
+    [-0.30, 1.10, 0.46, 1.0, 0.8,  false],
+    [ 0.20, 1.25, 0.46, 0.95,1.0,  false],
+    [ 0.70, 1.30, 0.46, 0.95,1.1,  false],
+  ];
+  for (const [x, z, r, sz, ry, dark] of segments) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.04, 18), dark ? MAT.sandDark : MAT.sand);
+    seg.position.set(x, 0.115, z);
+    seg.scale.set(1, 1, sz);
+    seg.rotation.y = ry;
+    seg.receiveShadow = true;
+    group.add(seg);
+  }
+  // A few darker scatter pebbles
+  const pebbles = [
+    [-1.2, -0.7, 0.06],
+    [-0.9, 0.5,  0.05],
+    [-0.2, 1.1,  0.05],
+    [ 0.5, 1.25, 0.06],
+  ];
+  for (const [x, z, r] of pebbles) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8), MAT.sandDark);
+    p.position.set(x, 0.14, z);
+    p.scale.set(1, 0.4, 1);
+    group.add(p);
+  }
+  return group;
+}
+
+/* ============================================================
+   PLOTS
+============================================================ */
+const plotMeshes = [];
+const plotCropGroups = [];
+const plotSoilTops = [];
+const plotReadyContainers = [];
+
+function makeReadyIndicator() {
+  // Outer group so the animate loop can spin the WHOLE coin around the world Y axis,
+  // while keeping the coin's flat face oriented forward (toward the camera-ish).
+  const outer = new THREE.Group();
+
+  const coinGroup = new THREE.Group();
+  coinGroup.rotation.x = Math.PI / 2; // tilt coin so its flat face is vertical (front-facing)
+
+  // Main coin body
+  const coin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.18, 0.04, 32),
+    new THREE.MeshLambertMaterial({ color: 0xf5cf3d, emissive: 0x6a4a08, emissiveIntensity: 0.25 })
+  );
+  coinGroup.add(coin);
+
+  // Slightly recessed inner relief disk (darker gold)
+  const relief = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.14, 0.14, 0.045, 28),
+    new THREE.MeshLambertMaterial({ color: 0xddae20 })
+  );
+  coinGroup.add(relief);
+
+  // "$" symbol on the face (vertical bar + two serifs, slightly proud)
+  const symMat = new THREE.MeshBasicMaterial({ color: 0x6a4a08 });
+  const vbar = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.15, 0.06), symMat);
+  vbar.position.set(0, 0, 0.001);
+  coinGroup.add(vbar);
+  const topBar = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.026, 0.06), symMat);
+  topBar.position.set(0.012, 0.05, 0.001);
+  coinGroup.add(topBar);
+  const botBar = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.026, 0.06), symMat);
+  botBar.position.set(-0.012, -0.05, 0.001);
+  coinGroup.add(botBar);
+
+  outer.add(coinGroup);
+
+  outer.userData.isReadyCoin = true;
+  return outer;
+}
+
+function makePlot(plotIndex, x, z) {
+  const group = new THREE.Group();
+  const borderH = 0.06, t = 0.06, half = PLOT_SIZE / 2;
+
+  function edge(w, d, ex, ez) {
+    const e = new THREE.Mesh(new THREE.BoxGeometry(w, borderH, d), MAT.plotBorder);
+    e.position.set(ex, 0.135, ez);
+    e.castShadow = true;
+    group.add(e);
+  }
+  edge(PLOT_SIZE + 0.06, t, 0,  half);
+  edge(PLOT_SIZE + 0.06, t, 0, -half);
+  edge(t, PLOT_SIZE + 0.06,  half, 0);
+  edge(t, PLOT_SIZE + 0.06, -half, 0);
+
+  const soil = new THREE.Mesh(new THREE.BoxGeometry(PLOT_SIZE - 0.02, 0.12, PLOT_SIZE - 0.02), MAT.plotSoil.clone());
+  soil.position.y = 0.115;
+  soil.receiveShadow = true;
+  soil.userData = { plotIndex, isPlot: true };
+  group.add(soil);
+
+  // little dirt rows on top for texture
+  for (let i = -1; i <= 1; i++) {
+    const row = new THREE.Mesh(new THREE.BoxGeometry(PLOT_SIZE - 0.18, 0.025, 0.06), new THREE.MeshLambertMaterial({ color: 0x6e4222 }));
+    row.position.set(0, 0.185, i * 0.28);
+    group.add(row);
+  }
+
+  const cropContainer = new THREE.Group();
+  cropContainer.position.y = 0.175;
+  group.add(cropContainer);
+
+  // Ready-to-harvest floating indicator container (positioned WELL above the crop
+  // so it doesn't obscure the plant's silhouette)
+  const readyContainer = new THREE.Group();
+  readyContainer.position.y = 1.20;
+  group.add(readyContainer);
+
+  group.position.set(x, 0, z);
+  plotMeshes.push(soil);
+  plotSoilTops.push(soil);
+  plotCropGroups.push(cropContainer);
+  plotReadyContainers.push(readyContainer);
+  return group;
+}
+
+/* ============================================================
+   CROP VISUALS
+============================================================ */
+// Growth stage thresholds (fraction of growDays). 14 visible stages (0-13).
+//   0  bare mound
+//   1  mound + tiny green seed germ visible
+//   2  pinprick shoot tip
+//   3  taller shoot tip
+//   4  stem + 2 small cotyledons
+//   5  bigger cotyledons + center bud (beans: teepee appears)
+//   6  3 first true leaves
+//   7  4-5 leaves + small flowers
+//   8  established bush + flowers
+//   9  tiny pale immature produce starts forming
+//  10  produce growing, still pale
+//  11  produce nearly full size, color shifting
+//  12  produce ripening (color mostly there)
+//  13  fully mature, harvest-ready
+// Stage `s` runs from STAGE_THRESHOLDS[s] to STAGE_THRESHOLDS[s+1].
+const STAGE_THRESHOLDS = [0.00, 0.05, 0.10, 0.16, 0.22, 0.29, 0.37, 0.45, 0.54, 0.63, 0.72, 0.81, 0.90, 1.0, 1.0001];
+const MATURE_STAGE = 13;
+
+function computeGrowthStage(plot) {
+  if (!plot.cropId || !plot.plantedAt) return -1;
+  const c = CROPS[plot.cropId];
+  const days = (gameNow() - plot.plantedAt) / REAL_MS_PER_GAME_DAY;
+  const p = days / c.growDays;
+  if (p >= 1) return MATURE_STAGE;
+  for (let s = MATURE_STAGE - 1; s >= 0; s--) {
+    if (p >= STAGE_THRESHOLDS[s]) return s;
+  }
+  return 0;
+}
+function getPlotProgress(plot) {
+  if (!plot.cropId || !plot.plantedAt) return { progress: 0, ready: false, remainingMs: 0 };
+  const c = CROPS[plot.cropId];
+  const total = c.growDays * REAL_MS_PER_GAME_DAY;
+  const elapsed = gameNow() - plot.plantedAt;
+  // remaining shown is *game ms*; divide by speed to display real-time estimate.
+  return { progress: Math.min(1, elapsed / total), ready: elapsed >= total, remainingMs: Math.max(0, total - elapsed) };
+}
+
+// ---- helpers shared by crop visuals ----
+function lerpColorHex(a, b, t) {
+  const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+  const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return (r << 16) | (g << 8) | bl;
+}
+
+function addMound(group) {
+  const mound = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 12), MAT.mound);
+  mound.scale.set(1, 0.3, 1);
+  mound.position.y = 0.02;
+  group.add(mound);
+}
+
+// 3-stake teepee/wigwam trellis for pole beans (Hay Day style)
+function addBeanTeepee(group, height = 0.62) {
+  const stakeMat = new THREE.MeshLambertMaterial({ color: 0x9a6932 });
+  const baseR = 0.17;
+  const tilt = 0.42;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, height, 6), stakeMat);
+    stake.position.set(Math.cos(a) * baseR, height / 2, Math.sin(a) * baseR);
+    // Tilt each stake inward toward the apex
+    stake.rotation.x =  Math.sin(a) * tilt;
+    stake.rotation.z = -Math.cos(a) * tilt;
+    group.add(stake);
+  }
+  // Twine tie where stakes meet
+  const tie = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 6, 14), new THREE.MeshLambertMaterial({ color: 0x6a4823 }));
+  tie.position.y = height - 0.04;
+  tie.rotation.x = Math.PI / 2;
+  group.add(tie);
+}
+
+// Climbing leaves wrapping the teepee
+function addBeanClimbingLeaves(group, leafMat, density) {
+  // density: 0..1 — how lush
+  const rings = Math.max(1, Math.round(density * 6));
+  for (let h = 0; h < rings; h++) {
+    const y = 0.10 + h * 0.10;
+    const numLeaves = 2 + Math.floor(density * 2);
+    for (let i = 0; i < numLeaves; i++) {
+      const a = h * 1.3 + (i / numLeaves) * Math.PI * 2;
+      const r = 0.14 - h * 0.014;
+      const size = 0.07 + density * 0.04;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), leafMat);
+      leaf.position.set(Math.cos(a) * r, y, Math.sin(a) * r);
+      leaf.scale.set(1.25, 0.5, 1);
+      group.add(leaf);
+    }
+  }
+}
+
+// Crop-specific produce. `maturity` in [0..1]: 0 = first visible (immature), 1 = fully mature.
+function addCropProduce(group, cropId, maturity, leafMat, c) {
+  const immatureColor = 0x9ab85a;
+  const ripeColor = c.produceColor;
+  const colorNow = lerpColorHex(immatureColor, ripeColor, maturity);
+  const produceMat = new THREE.MeshLambertMaterial({ color: colorNow });
+
+  if (cropId === 'radish') {
+    const size = 0.05 + maturity * 0.10;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(size, 14, 14), produceMat);
+    bulb.scale.set(1, 1.1, 1);
+    bulb.position.y = 0.08 + maturity * 0.04;
+    group.add(bulb);
+    if (maturity > 0.35) {
+      const nLeaves = 3 + Math.floor(maturity * 2);
+      for (let i = 0; i < nLeaves; i++) {
+        const a = (i / nLeaves) * Math.PI * 2;
+        const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.10 + maturity * 0.10, 6), leafMat);
+        leaf.position.set(Math.cos(a) * 0.05, 0.18 + maturity * 0.10, Math.sin(a) * 0.05);
+        leaf.rotation.z = Math.cos(a) * 0.35;
+        leaf.rotation.x = Math.sin(a) * 0.35;
+        group.add(leaf);
+      }
+    }
+  }
+  else if (cropId === 'spinach') {
+    const darkMat = new THREE.MeshLambertMaterial({ color: lerpColorHex(0x5e8e3e, 0x2e7d2e, maturity) });
+    const nLeaves = 5 + Math.floor(maturity * 5);
+    const leafSize = 0.10 + maturity * 0.06;
+    const spread = 0.13 + maturity * 0.06;
+    for (let i = 0; i < nLeaves; i++) {
+      const a = (i / nLeaves) * Math.PI * 2 + i * 0.13;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(leafSize + Math.random() * 0.02, 10, 10), darkMat);
+      leaf.position.set(Math.cos(a) * spread, 0.18 + maturity * 0.04, Math.sin(a) * spread);
+      leaf.scale.set(1.3, 0.55, 1);
+      group.add(leaf);
+    }
+  }
+  else if (cropId === 'beans') {
+    // Pods hang VERTICALLY from the teepee leaves
+    const nPods = 3 + Math.floor(maturity * 7);     // 3 → 10 pods
+    const podLen = 0.14 + maturity * 0.16;          // 0.14 → 0.30
+    const podR = 0.014 + maturity * 0.006;          // slimmer when young
+    for (let i = 0; i < nPods; i++) {
+      const a = (i / nPods) * Math.PI * 2 + 0.3;
+      const r = 0.13 + (i % 2) * 0.02;
+      const yTop = 0.18 + (i % 3) * 0.13;
+      const pod = new THREE.Mesh(new THREE.CapsuleGeometry(podR, podLen, 4, 8), produceMat);
+      // Hang straight down with a tiny outward lean
+      pod.position.set(Math.cos(a) * r, yTop - podLen / 2, Math.sin(a) * r);
+      pod.rotation.z = Math.cos(a) * 0.18;
+      pod.rotation.x = -Math.sin(a) * 0.18;
+      group.add(pod);
+      // Bean-seed bulges along the pod (more visible as it ripens)
+      if (maturity > 0.4) {
+        for (let b = -1; b <= 1; b++) {
+          const bump = new THREE.Mesh(new THREE.SphereGeometry(podR * 1.4, 8, 8), produceMat);
+          bump.position.set(
+            Math.cos(a) * r + Math.cos(a) * 0.18 * 0.05,
+            yTop - podLen / 2 + b * (podLen * 0.28),
+            Math.sin(a) * r - Math.sin(a) * 0.18 * 0.05
+          );
+          group.add(bump);
+        }
+      }
+    }
+  }
+  else if (cropId === 'tomatoes') {
+    const nT = 2 + Math.floor(maturity * 5);   // 2 → 7
+    const size = 0.05 + maturity * 0.045;
+    for (let i = 0; i < nT; i++) {
+      const a = (i / nT) * Math.PI * 2 + 0.3;
+      const tom = new THREE.Mesh(new THREE.SphereGeometry(size, 12, 12), produceMat);
+      tom.position.set(Math.cos(a) * 0.17, 0.20 + (i % 2) * 0.08, Math.sin(a) * 0.17);
+      group.add(tom);
+      const stub = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.035, 5), leafMat);
+      stub.position.copy(tom.position);
+      stub.position.y += size + 0.005;
+      group.add(stub);
+    }
+  }
+  else if (cropId === 'peppers') {
+    const nP = 2 + Math.floor(maturity * 4);   // 2 → 6
+    const len = 0.10 + maturity * 0.14;
+    const radius = 0.04 + maturity * 0.028;
+    for (let i = 0; i < nP; i++) {
+      const a = (i / nP) * Math.PI * 2 + 0.4;
+      // Mix red & green at high maturity (sweet peppers come in both)
+      const localMat = (maturity > 0.65 && i % 2 === 0)
+        ? new THREE.MeshLambertMaterial({ color: 0xd34545 })
+        : new THREE.MeshLambertMaterial({ color: lerpColorHex(0x8aaa55, 0x6ba84f, Math.min(1, maturity * 1.4)) });
+      const pep = new THREE.Mesh(new THREE.ConeGeometry(radius, len, 8), localMat);
+      pep.position.set(Math.cos(a) * 0.18, 0.20, Math.sin(a) * 0.18);
+      pep.rotation.x = Math.PI;
+      pep.rotation.z = (Math.random() - 0.5) * 0.25;
+      group.add(pep);
+      // Green calyx stem on top
+      const stem = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.03, 5), leafMat);
+      stem.position.copy(pep.position);
+      stem.position.y += len / 2 + 0.005;
+      group.add(stem);
+    }
+  }
+  else if (cropId === 'strawberry') {
+    // Low spread plant — multiple small red berries sitting on top of small leaves
+    const nB = 3 + Math.floor(maturity * 4);     // 3 → 7 berries
+    const size = 0.05 + maturity * 0.02;
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xfdf5e0 });
+    for (let i = 0; i < nB; i++) {
+      const a = (i / nB) * Math.PI * 2 + i * 0.3;
+      const r = 0.13 + ((i * 5) % 5) * 0.012;
+      const berry = new THREE.Mesh(new THREE.SphereGeometry(size, 14, 12), produceMat);
+      berry.scale.set(1, 1.25, 1);
+      berry.position.set(Math.cos(a) * r, 0.11 + ((i * 3) % 4) * 0.012, Math.sin(a) * r);
+      group.add(berry);
+      // Tiny green calyx
+      const cal = new THREE.Mesh(new THREE.SphereGeometry(size * 0.55, 6, 6), leafMat);
+      cal.position.copy(berry.position);
+      cal.position.y += size * 0.85;
+      cal.scale.set(1, 0.45, 1);
+      group.add(cal);
+      // White flower bud (early maturity only)
+      if (maturity < 0.5 && i % 2 === 0) {
+        const flower = new THREE.Mesh(new THREE.SphereGeometry(size * 0.6, 8, 8), whiteMat);
+        flower.position.set(Math.cos(a) * (r + 0.04), 0.10, Math.sin(a) * (r + 0.04));
+        flower.scale.set(1, 0.35, 1);
+        group.add(flower);
+      }
+    }
+  }
+  else if (cropId === 'carrot') {
+    // Orange tapered root partially visible above ground + leafy green top
+    const size = 0.05 + maturity * 0.05;
+    const len = 0.18 + maturity * 0.10;
+    const root = new THREE.Mesh(new THREE.ConeGeometry(size, len, 12), produceMat);
+    // Root pointing UP (wide top peeking above soil, point goes into ground visually)
+    root.position.y = 0.08 + maturity * 0.04;
+    group.add(root);
+    // Leafy frilly top
+    const nLeaves = 4 + Math.floor(maturity * 3);
+    for (let i = 0; i < nLeaves; i++) {
+      const a = (i / nLeaves) * Math.PI * 2;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.16 + maturity * 0.06, 5), leafMat);
+      leaf.position.set(Math.cos(a) * 0.035, 0.10 + maturity * 0.04 + len / 2 + 0.05, Math.sin(a) * 0.035);
+      leaf.rotation.z = Math.cos(a) * 0.35;
+      leaf.rotation.x = Math.sin(a) * 0.35;
+      group.add(leaf);
+    }
+  }
+  else if (cropId === 'pineapple') {
+    // Sword-like base leaves splaying outward and upward
+    const baseLeafMat = new THREE.MeshLambertMaterial({ color: lerpColorHex(0x3a7a3a, 0x4a8e3a, maturity) });
+    const nBase = 6 + Math.floor(maturity * 4);
+    for (let i = 0; i < nBase; i++) {
+      const a = (i / nBase) * Math.PI * 2;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.36 + maturity * 0.10, 5), baseLeafMat);
+      leaf.position.set(Math.cos(a) * 0.10, 0.18, Math.sin(a) * 0.10);
+      leaf.rotation.z = Math.cos(a) * 0.45;
+      leaf.rotation.x = Math.sin(a) * 0.45;
+      group.add(leaf);
+    }
+    // Central pineapple fruit (cylindrical with crown)
+    const fruitH = 0.16 + maturity * 0.12;
+    const fruitR = 0.08 + maturity * 0.035;
+    const fruit = new THREE.Mesh(new THREE.CylinderGeometry(fruitR * 0.85, fruitR, fruitH, 12), produceMat);
+    fruit.position.y = 0.22 + fruitH / 2;
+    group.add(fruit);
+    // Diamond pattern (small darker dots on the fruit)
+    if (maturity > 0.5) {
+      const dotMat = new THREE.MeshLambertMaterial({ color: 0x8a6a18 });
+      for (let row = 0; row < 4; row++) {
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + row * 0.2;
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), dotMat);
+          dot.position.set(
+            Math.cos(a) * fruitR * 0.95,
+            0.22 + fruitH * (0.15 + row * 0.22),
+            Math.sin(a) * fruitR * 0.95
+          );
+          group.add(dot);
+        }
+      }
+    }
+    // Spiky crown on top
+    const crownLeafMat = new THREE.MeshLambertMaterial({ color: 0x3a7a3a });
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.16 + maturity * 0.04, 5), crownLeafMat);
+      crown.position.set(Math.cos(a) * 0.035, 0.22 + fruitH + 0.08, Math.sin(a) * 0.035);
+      crown.rotation.z = Math.cos(a) * 0.25;
+      crown.rotation.x = Math.sin(a) * 0.25;
+      group.add(crown);
+    }
+  }
+  else if (cropId === 'cucumber') {
+    // Long thin green cucumbers lying on the ground in random directions
+    const nC = 1 + Math.floor(maturity * 2);   // 1 → 3
+    const len = 0.22 + maturity * 0.10;
+    const r = 0.035 + maturity * 0.015;
+    for (let i = 0; i < nC; i++) {
+      const a = (i / nC) * Math.PI * 2 + 0.35;
+      const dir = new THREE.Vector3(Math.cos(a + 0.5), 0, Math.sin(a + 0.5)).normalize();
+      const cuc = new THREE.Mesh(new THREE.CapsuleGeometry(r, len * 0.7, 6, 12), produceMat);
+      cuc.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      const baseR = 0.12;
+      cuc.position.set(Math.cos(a) * baseR, r + 0.04, Math.sin(a) * baseR);
+      group.add(cuc);
+      // Subtle darker bumps along the cucumber's length to suggest ridges
+      if (maturity > 0.4) {
+        const darkMat = new THREE.MeshLambertMaterial({ color: lerpColorHex(0x3a6a2a, 0x2a4a1a, maturity) });
+        for (let b = -1; b <= 1; b++) {
+          const bump = new THREE.Mesh(new THREE.SphereGeometry(r * 0.55, 6, 6), darkMat);
+          bump.position.copy(cuc.position).add(dir.clone().multiplyScalar(b * len * 0.22));
+          bump.position.y += r * 0.7;
+          group.add(bump);
+        }
+      }
+    }
+  }
+  else if (cropId === 'eggplant') {
+    // 1-3 large dark-purple oblong fruits hanging from a small bush
+    const nE = 1 + Math.floor(maturity * 2);
+    const calMat = new THREE.MeshLambertMaterial({ color: 0x5a8a3a });
+    for (let i = 0; i < nE; i++) {
+      const a = (i / nE) * Math.PI * 2 + 0.4;
+      const r = 0.06 + maturity * 0.025;
+      const h = 0.16 + maturity * 0.08;
+      // Egg-shape: scaled sphere
+      const egg = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 12), produceMat);
+      egg.scale.set(1, h / r, 1);
+      egg.position.set(Math.cos(a) * 0.17, 0.16 + h * 0.45, Math.sin(a) * 0.17);
+      egg.rotation.z = Math.cos(a) * 0.30;
+      egg.rotation.x = Math.sin(a) * 0.30;
+      group.add(egg);
+      // Green calyx
+      const cal = new THREE.Mesh(new THREE.SphereGeometry(r * 0.7, 8, 8), calMat);
+      cal.position.copy(egg.position);
+      cal.position.y += h * 0.42;
+      cal.scale.set(1.35, 0.5, 1.35);
+      group.add(cal);
+      // Thin stem rising to the calyx
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.015, 0.04, 5), calMat);
+      stem.position.copy(egg.position);
+      stem.position.y += h * 0.55 + 0.02;
+      group.add(stem);
+    }
+  }
+  else if (cropId === 'watermelon') {
+    // Vining leaves on the ground + 1-3 striped melons
+    const vineMat = new THREE.MeshLambertMaterial({ color: 0x6ba84f });
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.10, 10, 10), vineMat);
+      leaf.position.set(Math.cos(a) * 0.20, 0.07, Math.sin(a) * 0.20);
+      leaf.scale.set(1.4, 0.35, 1.15);
+      group.add(leaf);
+    }
+    const nMelons = 1 + Math.floor(maturity * 2);   // 1 → 3
+    const stripeMat = new THREE.MeshLambertMaterial({ color: 0x1c4a1a });
+    for (let i = 0; i < nMelons; i++) {
+      const a = (i / nMelons) * Math.PI * 2 + 0.5;
+      const size = 0.10 + maturity * 0.08;
+      const r = 0.13;
+      const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+      const melon = new THREE.Mesh(new THREE.SphereGeometry(size, 18, 14), produceMat);
+      melon.position.set(cx, size * 0.85, cz);
+      melon.scale.set(1.05, 0.85, 1.05);
+      group.add(melon);
+      // Dark green stripes wrapping the melon
+      for (let s = 0; s < 6; s++) {
+        const sa = (s / 6) * Math.PI * 2;
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.012, size * 1.55, 0.03), stripeMat);
+        stripe.position.set(cx + Math.cos(sa) * size * 0.88, size * 0.85, cz + Math.sin(sa) * size * 0.88);
+        stripe.rotation.y = sa;
+        group.add(stripe);
+      }
+      // Small curly vine stem
+      const stemMat = new THREE.MeshLambertMaterial({ color: 0x5a8a3a });
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.06, 6), stemMat);
+      stem.position.set(cx, size * 1.5, cz);
+      group.add(stem);
+    }
+  }
+}
+
+// Spinach grows as a flat ground-hugging rosette of broad dark-green leaves —
+// completely different silhouette from the stem-based crops (radish/tomato/etc).
+function addSpinachRosette(group, stage) {
+  const t = Math.min(1, stage / 12);                       // maturity 0..1
+  const baseColor = lerpColorHex(0x7ab050, 0x2a6e2a, t);   // light-green young → deep dark mature
+  const baseMat = new THREE.MeshLambertMaterial({ color: baseColor });
+
+  const nLeaves  = Math.min(12, 1 + Math.ceil(stage * 0.9));
+  const leafSize = Math.min(0.17, 0.05 + stage * 0.011);
+  const spread   = Math.min(0.22, 0.05 + stage * 0.013);
+
+  for (let i = 0; i < nLeaves; i++) {
+    // deterministic jitter so the rosette doesn't reshuffle on every stage transition
+    const angleJitter = ((i * 11) % 13) * 0.07;
+    const a = (i / nLeaves) * Math.PI * 2 + angleJitter;
+    const yJitter = 0.04 + ((i * 7) % 6) * 0.010;
+    const sizeJitter = ((i * 5) % 7) * 0.006;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(leafSize + sizeJitter, 10, 10), baseMat);
+    leaf.position.set(Math.cos(a) * spread, yJitter, Math.sin(a) * spread);
+    // Wide, flat, almost lying on the ground — that's the spinach leaf shape
+    leaf.scale.set(1.55, 0.28, 1.30);
+    // Tilt each leaf so it splays radially outward like petals of a rosette
+    leaf.rotation.z = Math.cos(a) * 0.40;
+    leaf.rotation.x = Math.sin(a) * 0.40;
+    leaf.rotation.y = a;
+    group.add(leaf);
+  }
+
+  // From stage 8 on, add a denser inner crown of slightly smaller, darker, more upright leaves
+  if (stage >= 8) {
+    const innerColor = lerpColorHex(0x4a8a3a, 0x1f5a1f, t);
+    const innerMat = new THREE.MeshLambertMaterial({ color: innerColor });
+    const innerCount = 3 + Math.floor((stage - 8) * 0.8);
+    const innerSize  = 0.06 + (stage - 8) * 0.011;
+    for (let i = 0; i < innerCount; i++) {
+      const a = (i / innerCount) * Math.PI * 2 + 0.4;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(innerSize, 10, 10), innerMat);
+      leaf.position.set(Math.cos(a) * 0.08, 0.10 + (stage - 8) * 0.008, Math.sin(a) * 0.08);
+      leaf.scale.set(1.3, 0.45, 1.1);
+      leaf.rotation.z = Math.cos(a) * 0.20;
+      leaf.rotation.x = Math.sin(a) * 0.20;
+      leaf.rotation.y = a;
+      group.add(leaf);
+    }
+  }
+}
+
+// Lettuce: a tight, ball-shaped head of leaves wrapped around a denser core.
+// Distinct silhouette from spinach (flat rosette) and from the stem-based crops.
+function addLettuceHead(group, stage) {
+  const t = Math.min(1, stage / 12);
+  const outerColor = lerpColorHex(0xb8d870, 0x8ac050, t);   // bright young → settled lettuce green
+  const innerColor = lerpColorHex(0x9ac86a, 0x6aa83a, t);
+  const outerMat = new THREE.MeshLambertMaterial({ color: outerColor });
+  const innerMat = new THREE.MeshLambertMaterial({ color: innerColor });
+
+  // Outer wavy leaves — broad, splaying outward forming the wrap of the head
+  const nOuter   = Math.min(11, 3 + Math.floor(stage * 0.7));
+  const outerSize = Math.min(0.18, 0.06 + stage * 0.011);
+  const spread    = Math.min(0.21, 0.06 + stage * 0.013);
+  for (let i = 0; i < nOuter; i++) {
+    const a = (i / nOuter) * Math.PI * 2 + ((i * 7) % 9) * 0.05;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(outerSize, 12, 10), outerMat);
+    leaf.position.set(Math.cos(a) * spread, 0.10 + ((i * 3) % 4) * 0.01, Math.sin(a) * spread);
+    leaf.scale.set(1.45, 0.55, 1.20);
+    leaf.rotation.z = Math.cos(a) * 0.35;
+    leaf.rotation.x = Math.sin(a) * 0.35;
+    leaf.rotation.y = a;
+    group.add(leaf);
+  }
+
+  // Inner dense core (ball of tighter leaves on top of the outer wrap)
+  if (stage >= 4) {
+    const innerCount = 5 + Math.floor((stage - 4) * 0.7);
+    const innerSize  = 0.06 + stage * 0.008;
+    const innerR     = 0.06 + stage * 0.005;
+    const innerY     = 0.18 + stage * 0.006;
+    for (let i = 0; i < innerCount; i++) {
+      const a = (i / innerCount) * Math.PI * 2 + i * 0.21;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(innerSize, 10, 10), innerMat);
+      leaf.position.set(Math.cos(a) * innerR, innerY, Math.sin(a) * innerR);
+      leaf.scale.set(1.20, 0.75, 1.10);
+      group.add(leaf);
+    }
+    // Crown top leaf so the head reads as "ball" not "ring"
+    const top = new THREE.Mesh(new THREE.SphereGeometry(innerSize * 1.1, 12, 10), innerMat);
+    top.position.set(0, innerY + 0.04, 0);
+    top.scale.set(1.0, 0.85, 1.0);
+    group.add(top);
+  }
+}
+
+function addCropFlowers(group, cropId) {
+  // Tiny pale-yellow buds, except spinach which doesn't show flowers in this game
+  if (cropId === 'spinach') return;
+  const fMat = new THREE.MeshLambertMaterial({ color: 0xfff3b8 });
+  const centerMat = new THREE.MeshLambertMaterial({ color: 0xf5c54a });
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + 0.7;
+    const flower = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), fMat);
+    flower.position.set(Math.cos(a) * 0.13, 0.24, Math.sin(a) * 0.13);
+    group.add(flower);
+    const cen = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), centerMat);
+    cen.position.copy(flower.position);
+    group.add(cen);
+  }
+}
+
+function makeCropVisual(cropId, stage) {
+  const group = new THREE.Group();
+  const c = CROPS[cropId];
+  const leafMat       = new THREE.MeshLambertMaterial({ color: c.leafColor });
+  const leafMatLight  = new THREE.MeshLambertMaterial({ color: 0xb8e088 });
+
+  const isBeans = cropId === 'beans';
+  const isSpinach = cropId === 'spinach';
+  const isLettuce = cropId === 'lettuce';
+  const isLeafyHead = isSpinach || isLettuce;
+
+  // Soil mound is visible until the plant grows large enough to cover it (stages 0-5).
+  // For leafy-head crops we hide it earlier because the foliage spreads wide.
+  if (stage <= (isLeafyHead ? 3 : 5)) addMound(group);
+
+  // Spinach diverges entirely from the stem-based pattern — it's a flat rosette at every stage.
+  if (isSpinach && stage >= 1) {
+    addSpinachRosette(group, stage);
+    group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return group;
+  }
+
+  // Lettuce is a tight, ball-shaped head of leaves (different from spinach's flat rosette).
+  if (isLettuce && stage >= 1) {
+    addLettuceHead(group, stage);
+    group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return group;
+  }
+
+  // Bean teepee appears at stage 5 (when the plant starts to need support) and stays
+  if (isBeans && stage >= 5) addBeanTeepee(group, 0.62);
+
+  // === Sprouts and young leaves ===
+  if (stage === 0) {
+    // Bare mound only — already added above.
+
+  } else if (stage === 1) {
+    // Tiny green seed-germ peeking out
+    const germ = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), leafMatLight);
+    germ.position.y = 0.06;
+    group.add(germ);
+
+  } else if (stage === 2) {
+    // Pinprick shoot tip
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 6), leafMatLight);
+    tip.position.y = 0.05;
+    group.add(tip);
+
+  } else if (stage === 3) {
+    // Taller shoot tip
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.09, 6), leafMatLight);
+    tip.position.y = 0.08;
+    group.add(tip);
+
+  } else if (stage === 4) {
+    // Stem + 2 small cotyledons
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.10, 6), leafMatLight);
+    stem.position.y = 0.07;
+    group.add(stem);
+    for (let i = 0; i < 2; i++) {
+      const a = i * Math.PI;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), leafMatLight);
+      leaf.position.set(Math.cos(a) * 0.04, 0.12, Math.sin(a) * 0.04);
+      leaf.scale.set(1.5, 0.35, 1);
+      group.add(leaf);
+    }
+
+  } else if (stage === 5) {
+    // Bigger cotyledons + tiny center bud
+    if (!isBeans) {
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.016, 0.12, 6), leafMatLight);
+      stem.position.y = 0.08;
+      group.add(stem);
+    }
+    for (let i = 0; i < 2; i++) {
+      const a = i * Math.PI;
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 10), leafMatLight);
+      leaf.position.set(Math.cos(a) * 0.05, 0.14, Math.sin(a) * 0.05);
+      leaf.scale.set(1.5, 0.4, 1);
+      group.add(leaf);
+    }
+    const bud = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), leafMat);
+    bud.position.y = 0.18;
+    group.add(bud);
+
+  // === Stages 6-13: established plant with progressive foliage and produce ===
+  } else if (stage >= 6) {
+    // Parameterized foliage: number, size, spread all grow with stage
+    const isYoungFoliage = stage === 6;
+    const foliageMat = isYoungFoliage ? leafMatLight : leafMat;
+    const nLeaves   = Math.min(8, 3 + Math.floor((stage - 6) * 0.7));
+    const leafSize  = Math.min(0.17, 0.08 + (stage - 6) * 0.011);
+    const spread    = Math.min(0.22, 0.10 + (stage - 6) * 0.017);
+    const fHeight   = 0.14 + (stage - 6) * 0.005;
+
+    if (isBeans) {
+      // Leaves climb the teepee rather than form a ground rosette
+      const density = Math.min(1, (stage - 5) / 7);
+      addBeanClimbingLeaves(group, foliageMat, density);
+    } else {
+      for (let i = 0; i < nLeaves; i++) {
+        const a = (i / nLeaves) * Math.PI * 2 + i * 0.07;
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(leafSize, 10, 10), foliageMat);
+        leaf.position.set(Math.cos(a) * spread, fHeight, Math.sin(a) * spread);
+        leaf.scale.set(1.15, 0.5, 1);
+        group.add(leaf);
+      }
+      // Small crown node on younger plants
+      if (stage <= 8) {
+        const node = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), foliageMat);
+        node.position.y = fHeight + 0.07;
+        group.add(node);
+      }
+    }
+
+    // Flowers briefly bloom at stages 7-8 just before produce starts forming
+    if (stage === 7 || stage === 8) {
+      addCropFlowers(group, cropId);
+    }
+
+    // Produce: starts at stage 9 (immature) and ripens to stage 13 (fully mature)
+    if (stage >= 9) {
+      const maturity = Math.min(1, (stage - 9) / 4);   // stage 9→0, 13→1
+      addCropProduce(group, cropId, maturity, leafMat, c);
+    }
+  }
+
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+function rebuildCrops() {
+  for (let i = 0; i < NUM_PLOTS; i++) {
+    const container = plotCropGroups[i];
+    while (container.children.length) {
+      const c = container.children[0];
+      container.remove(c);
+      c.traverse(o => {
+        if (o.isMesh) { o.geometry?.dispose?.(); if (o.material && !Object.values(MAT).includes(o.material)) o.material.dispose?.(); }
+      });
+    }
+    const plot = state.plots[i];
+    let stage = -1;
+    if (plot.cropId) {
+      stage = computeGrowthStage(plot);
+      container.add(makeCropVisual(plot.cropId, stage));
+    }
+    container.userData.stage = stage;
+
+    // Ready indicator: floating coin above the plot, only when fully mature.
+    const readyContainer = plotReadyContainers[i];
+    while (readyContainer.children.length) {
+      const c = readyContainer.children[0];
+      readyContainer.remove(c);
+      c.traverse(o => { if (o.isMesh) { o.geometry?.dispose?.(); o.material?.dispose?.(); } });
+    }
+    if (stage === MATURE_STAGE) {
+      readyContainer.add(makeReadyIndicator());
+    }
+  }
+}
+
+/* ============================================================
+   COOP + DECORATIONS scene management
+============================================================ */
+let coopMesh = null;
+const decorationMeshes = [];   // index-aligned with state.decorations
+
+function syncCoopToScene() {
+  if (state.coopOwned && !coopMesh) {
+    coopMesh = makeChickenCoop();
+    coopMesh.position.set(COOP_POSITION.x, 0, COOP_POSITION.z);
+    scene.add(coopMesh);
+    if (rightTreeMesh) rightTreeMesh.visible = false;
+  } else if (!state.coopOwned && coopMesh) {
+    scene.remove(coopMesh);
+    coopMesh = null;
+    if (rightTreeMesh) rightTreeMesh.visible = true;
+  }
+}
+
+function syncDecorationsToScene() {
+  // Drop any existing meshes, then rebuild from state
+  while (decorationMeshes.length) {
+    const m = decorationMeshes.pop();
+    if (m) scene.remove(m);
+  }
+  for (const dec of state.decorations) {
+    const slot = DECORATION_SLOTS[dec.slot];
+    if (!slot) { decorationMeshes.push(null); continue; }
+    const m = makeDecoration(dec.type);
+    if (m) {
+      m.position.set(slot.x, 0, slot.z);
+      if (slot.ry) m.rotation.y = slot.ry;
+      m.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      scene.add(m);
+      decorationMeshes.push(m);
+    } else {
+      decorationMeshes.push(null);
+    }
+  }
+}
+
+// Returns the index of the next free slot, or -1 if all are taken
+function nextFreeDecorationSlot() {
+  const used = new Set(state.decorations.map(d => d.slot));
+  for (let i = 0; i < DECORATION_SLOTS.length; i++) {
+    if (!used.has(i)) return i;
+  }
+  return -1;
+}
+
+/* ============================================================
+   BUILD WORLD
+============================================================ */
+scene.add(makeDiorama());
+
+// Sky elements (clouds + sun) - placed behind the diorama from the camera angle
+const cloudGroup = new THREE.Group();
+cloudGroup.add(makeCloud(-3.6,  5.2, -5.2, 1.05));
+cloudGroup.add(makeCloud( 2.8,  5.8, -6.0, 0.95));
+cloudGroup.add(makeCloud( 0.6,  6.4, -7.0, 0.75));
+scene.add(cloudGroup);
+
+const sunMesh = makeSun(0, 6.5, -6, 0.55);
+scene.add(sunMesh);
+const moonMesh = makeMoon(0, -5, -6, 0.42); // starts below the horizon (game begins at noon)
+scene.add(moonMesh);
+
+const house = makeHouse();
+house.position.set(-1.4, 0, -1.9);
+scene.add(house);
+
+scene.add(makeTree(1.0)).position.set(-3.3, 0, -2.4);
+// This tree gets hidden when the chicken coop is built (coop sits in the back-right corner).
+const rightTreeMesh = makeTree(1.15);
+rightTreeMesh.position.set(3.2, 0, -1.8);
+scene.add(rightTreeMesh);
+scene.add(makeTree(0.85)).position.set(3.4, 0, 2.6);
+
+const fenceBack  = makeFenceSegment(7.2, false); fenceBack.position.set(0,  0, -3.8); scene.add(fenceBack);
+const fenceLeft  = makeFenceSegment(3.0, true);  fenceLeft.position.set(-3.8, 0, -2.0); scene.add(fenceLeft);
+const fenceRight = makeFenceSegment(2.6, true);  fenceRight.position.set(3.8, 0, -2.4); scene.add(fenceRight);
+
+scene.add(makeSandyPath());
+
+// More flowers, denser around the lawn fringes
+const flowerColors = [0xf0a8c0, 0xfff8e0, 0xc0a8e0, 0xf08570, 0xefb6e0, 0xfddd6b];
+const flowerSpots = [
+  [-3.0, -0.4], [-3.4, 0.4], [-2.7, 1.1], [-3.1, 2.4],
+  [ 2.7,  0.7], [ 2.4, 3.2], [-2.4, -2.9], [-2.0, 3.0],
+  [-3.4, -1.0], [ 2.8, 1.6], [-3.0, 2.0], [ 3.0, 2.0],
+  [-2.0, -2.0], [-1.5, 3.3], [ 1.5, 3.4], [ 3.2, -3.0],
+  [-3.5, 1.5], [ 3.5, 0.0],
+];
+for (const [x, z] of flowerSpots) {
+  scene.add(makeFlower(x, z, flowerColors[Math.floor(Math.random() * flowerColors.length)]));
+}
+
+scene.add(makeBush(-3.0, -1.5, 0.85));
+scene.add(makeBush( 0.2, -2.6, 0.7));
+scene.add(makeBush(-2.6, 2.7, 0.75));
+scene.add(makeBush(-3.4, 1.6, 0.6));
+scene.add(makeBush( 3.4, 0.4, 0.7));   // moved further right so it doesn't overlap the rightmost plot column
+scene.add(makeLogPile(1.2, -1.3));
+
+const plotsGroup = new THREE.Group();
+plotsGroup.position.set(0.9, 0, 1.6);
+const step = PLOT_SIZE + PLOT_GAP;
+for (let row = 0; row < GRID_SIZE; row++) {
+  for (let col = 0; col < GRID_SIZE; col++) {
+    const idx = row * GRID_SIZE + col;
+    plotsGroup.add(makePlot(idx, (col - 1) * step, (row - 1) * step));
+  }
+}
+scene.add(plotsGroup);
+
+rebuildCrops();
+syncCoopToScene();
+syncDecorationsToScene();
+
+/* ============================================================
+   INTERACTION
+============================================================ */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoveredPlotIndex = -1;
+
+function pickPlot(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(plotMeshes, false);
+  return hits.length ? hits[0].object.userData.plotIndex : -1;
+}
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  const idx = pickPlot(e);
+  if (idx !== hoveredPlotIndex) {
+    if (hoveredPlotIndex >= 0) plotSoilTops[hoveredPlotIndex].material.color.setHex(0x8b5d3a);
+    hoveredPlotIndex = idx;
+    if (idx >= 0) plotSoilTops[idx].material.color.setHex(0xa87a52);
+  }
+  if (idx >= 0) showTooltip(e.clientX, e.clientY, idx);
+  else hideTooltip();
+});
+renderer.domElement.addEventListener('mouseleave', () => {
+  hideTooltip();
+  if (hoveredPlotIndex >= 0) { plotSoilTops[hoveredPlotIndex].material.color.setHex(0x8b5d3a); hoveredPlotIndex = -1; }
+});
+renderer.domElement.addEventListener('click', (e) => {
+  const idx = pickPlot(e);
+  if (idx >= 0) handlePlotClick(idx);
+});
+
+function handlePlotClick(idx) {
+  const plot = state.plots[idx];
+  if (plot.cropId) {
+    const { ready } = getPlotProgress(plot);
+    if (ready) {
+      const cid = plot.cropId;
+      const c = CROPS[cid];
+      if (state.autoSell[cid]) {
+        earnCoins(c.sellPrice);
+        flashMessage(`Auto-sold 1 ${c.name} for 🪙${c.sellPrice}! 💰`);
+      } else {
+        state.inventoryProduce[cid] = (state.inventoryProduce[cid] || 0) + 1;
+        flashMessage(`Harvested 1 ${c.name}! 🧺`);
+      }
+      state.plots[idx] = { cropId: null, plantedAt: null };
+      rebuildCrops();
+      saveState();
+      updateHUD();
+    } else {
+      flashMessage('Not ready yet — give it more time.');
+    }
+  } else {
+    const sel = state.selectedSeed;
+    if (!sel) { flashMessage('Select a seed first (from the HUD).'); return; }
+    if ((state.inventorySeeds[sel] || 0) <= 0) { flashMessage(`No ${CROPS[sel].name} seeds. Visit the store.`); return; }
+    state.inventorySeeds[sel] -= 1;
+    if (state.inventorySeeds[sel] <= 0) state.selectedSeed = null;
+    state.plots[idx] = { cropId: sel, plantedAt: gameNow() };
+    rebuildCrops();
+    saveState();
+    updateHUD();
+    flashMessage(`Planted ${CROPS[sel].name}. 🌱`);
+  }
+}
+
+/* ============================================================
+   TOOLTIP
+============================================================ */
+const tooltipEl = document.getElementById('tooltip');
+function showTooltip(x, y, idx) {
+  const plot = state.plots[idx];
+  let html;
+  if (!plot.cropId) {
+    html = state.selectedSeed && state.inventorySeeds[state.selectedSeed] > 0
+      ? `<b>Empty plot</b><br>Click to plant <b>${CROPS[state.selectedSeed].name}</b>`
+      : `<b>Empty plot</b><br>Select a seed to plant`;
+  } else {
+    const c = CROPS[plot.cropId];
+    const { progress, ready, remainingMs } = getPlotProgress(plot);
+    const gameDaysLeft = Math.ceil(remainingMs / REAL_MS_PER_GAME_DAY);
+    if (ready) {
+      html = `<b>${c.name}</b> <span class="ready-badge">READY!</span><br>Click to harvest (worth 🪙${c.sellPrice})`;
+    } else {
+      const realTimeMs = remainingMs / speedMultiplier;
+      const speedNote = speedMultiplier > 1 ? ` <span style="color:#ffd97a">@${speedMultiplier}×</span>` : '';
+      html = `<b>${c.name}</b><br>Growth: ${(progress * 100).toFixed(0)}%<br>~${gameDaysLeft} game day${gameDaysLeft===1?'':'s'} left<br><span style="color:#cfc;opacity:.85">(${formatRealTime(realTimeMs)} real time${speedNote})</span><div class="progress-bar"><div class="progress-bar-fill" style="width:${progress * 100}%"></div></div>`;
+    }
+  }
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.display = 'block';
+  tooltipEl.style.left = Math.min(window.innerWidth - 260, x + 14) + 'px';
+  tooltipEl.style.top  = (y + 14) + 'px';
+}
+function hideTooltip() { tooltipEl.style.display = 'none'; }
+
+/* ============================================================
+   HUD
+============================================================ */
+const coinsEl = document.getElementById('coins');
+const dateEl = document.getElementById('date-display');
+const selectedSeedEl = document.getElementById('selected-seed');
+const seedPillsEl = document.getElementById('seed-pills');
+
+function selectSeed(id) {
+  if ((state.inventorySeeds[id] || 0) <= 0) { flashMessage(`No ${CROPS[id].name} seeds.`); return; }
+  state.selectedSeed = id;
+  saveState();
+  updateHUD();
+}
+// Pills are rebuilt from scratch each refresh because the set of unlocked crops can grow over time.
+function updateSeedPills() {
+  seedPillsEl.innerHTML = '';
+  for (const id of state.unlockedCrops) {
+    if (!CROPS[id]) continue;
+    const pill = document.createElement('div');
+    pill.className = 'seed-pill';
+    pill.dataset.cropId = id;
+    pill.onclick = () => selectSeed(id);
+    const count = state.inventorySeeds[id] || 0;
+    pill.innerHTML = `<div style="font-weight:bold">${CROPS[id].icon || ''} ${CROPS[id].name}</div><div style="font-size:10px;color:#6b5a45">×${count}</div>`;
+    pill.classList.toggle('active', state.selectedSeed === id);
+    pill.classList.toggle('disabled', count <= 0);
+    seedPillsEl.appendChild(pill);
+  }
+}
+function updateHUD() {
+  coinsEl.textContent = state.coins;
+  const t = getGameTime();
+  const seasonClass = `season-${t.season.toLowerCase()}`;
+  const hh = String(t.hour).padStart(2, '0');
+  const mm = String(t.minute).padStart(2, '0');
+  dateEl.innerHTML = `Year ${t.year} · <span class="${seasonClass}">${t.season}</span> · Month ${t.month} · Day ${t.day} · 🕐 ${hh}:${mm}`;
+  if (state.selectedSeed) {
+    selectedSeedEl.textContent = `${CROPS[state.selectedSeed].name} (×${state.inventorySeeds[state.selectedSeed] || 0})`;
+    selectedSeedEl.classList.remove('none');
+  } else {
+    selectedSeedEl.textContent = 'None';
+    selectedSeedEl.classList.add('none');
+  }
+  updateSeedPills();
+}
+updateHUD();
+
+/* ============================================================
+   STORE
+============================================================ */
+const storeModalEl   = document.getElementById('store-modal');
+const storeCoinsEl   = document.getElementById('store-coins');
+const storeTabsEl    = document.getElementById('store-tabs');
+const storeContentEl = document.getElementById('store-tab-content');
+
+let activeStoreTab = 'seeds';
+
+window.openStore = function () { buildStore(); storeModalEl.classList.add('open'); };
+window.closeStore = function () { storeModalEl.classList.remove('open'); };
+
+// Wire tab clicks
+storeTabsEl.querySelectorAll('.store-tab').forEach(btn => {
+  btn.onclick = () => {
+    activeStoreTab = btn.dataset.tab;
+    storeTabsEl.querySelectorAll('.store-tab').forEach(b => b.classList.toggle('active', b === btn));
+    buildStore();
+  };
+});
+
+function buildStore() {
+  storeCoinsEl.textContent = state.coins;
+  // Make sure the right tab button is highlighted (in case we entered via direct call)
+  storeTabsEl.querySelectorAll('.store-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === activeStoreTab));
+
+  if (activeStoreTab === 'seeds')        renderSeedsTab();
+  else if (activeStoreTab === 'produce') renderProduceTab();
+  else if (activeStoreTab === 'buildings') renderBuildingsTab();
+  else if (activeStoreTab === 'decorations') renderDecorationsTab();
+}
+
+function renderSeedsTab() {
+  let html = '';
+  for (const id of CROP_IDS) {
+    const c = CROPS[id];
+    const owned = state.inventorySeeds[id] || 0;
+    const colorHex = '#' + c.produceColor.toString(16).padStart(6, '0');
+    const unlocked = state.unlockedCrops.includes(id);
+    if (unlocked) {
+      html += `
+        <div class="crop-row">
+          <div>
+            <div class="name"><span class="crop-icon" style="background:${colorHex}"></span>${c.icon || ''} ${c.name}</div>
+            <div class="inventory-line">Seeds owned: ×${owned}</div>
+          </div>
+          <div class="meta">
+            Seed: 🪙${c.seedCost}<br>
+            Grows in: ${c.growDays} game days <span style="opacity:.7">(${formatRealTime(c.growDays * REAL_MS_PER_GAME_DAY)})</span><br>
+            Harvest sells for: 🪙${c.sellPrice}
+          </div>
+          <div class="actions">
+            <button class="small" data-buy="${id}" data-qty="1" ${state.coins < c.seedCost ? 'disabled' : ''}>Buy +1</button>
+            <button class="small" data-buy="${id}" data-qty="5" ${state.coins < c.seedCost * 5 ? 'disabled' : ''}>Buy +5</button>
+          </div>
+        </div>`;
+    } else {
+      // Locked premium crop — show only the unlock action
+      const canUnlock = state.coins >= c.unlockCost;
+      const markup = (c.sellPrice / c.seedCost).toFixed(1);
+      // Specialty badge highlights the crop's strength (only one of: cheap seed / fast / high yield)
+      const specialtyBadge = c.specialty === 'cheap' ? '<span style="background:#7ec050;color:white;padding:2px 7px;border-radius:8px;font-size:10px;font-weight:bold">CHEAP SEED</span>'
+                          : c.specialty === 'fast'  ? '<span style="background:#5fa8d4;color:white;padding:2px 7px;border-radius:8px;font-size:10px;font-weight:bold">FAST GROW</span>'
+                          : c.specialty === 'yield' ? '<span style="background:#d4a043;color:white;padding:2px 7px;border-radius:8px;font-size:10px;font-weight:bold">HIGH YIELD</span>'
+                          : '';
+      html += `
+        <div class="crop-row" style="opacity:0.85; background: linear-gradient(180deg, transparent, rgba(218,165,32,0.06));">
+          <div>
+            <div class="name"><span class="crop-icon" style="background:${colorHex}; filter:grayscale(0.4)"></span>🔒 ${c.icon || ''} ${c.name} ${specialtyBadge}</div>
+            <div class="inventory-line">Premium crop — locked</div>
+          </div>
+          <div class="meta">
+            Seed cost (once unlocked): 🪙${c.seedCost}<br>
+            Grows in: ${c.growDays} game days <span style="opacity:.7">(${formatRealTime(c.growDays * REAL_MS_PER_GAME_DAY)})</span><br>
+            Harvest sells for: <strong style="color:#b8860b">🪙${c.sellPrice}</strong> (${markup}× markup)
+          </div>
+          <div class="actions">
+            <button class="small" data-unlock="${id}" ${!canUnlock ? 'disabled' : ''} style="background:linear-gradient(180deg, #d4a373, #b58252)">🔓 Unlock 🪙${c.unlockCost}</button>
+          </div>
+        </div>`;
+    }
+  }
+  storeContentEl.innerHTML = html;
+  storeContentEl.querySelectorAll('[data-buy]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.buy;
+      const qty = parseInt(btn.dataset.qty, 10);
+      const cost = CROPS[id].seedCost * qty;
+      if (state.coins < cost) return;
+      state.coins -= cost;
+      state.inventorySeeds[id] = (state.inventorySeeds[id] || 0) + qty;
+      if (!state.selectedSeed) state.selectedSeed = id;
+      saveState();
+      updateHUD();
+      buildStore();
+      flashMessage(`Bought ${qty}× ${CROPS[id].name} seed${qty > 1 ? 's' : ''}.`);
+    };
+  });
+  storeContentEl.querySelectorAll('[data-unlock]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.unlock;
+      const c = CROPS[id];
+      if (state.coins < c.unlockCost || state.unlockedCrops.includes(id)) return;
+      state.coins -= c.unlockCost;
+      state.unlockedCrops.push(id);
+      saveState();
+      updateHUD();   // refreshes seed pills
+      buildStore();
+      flashMessage(`🔓 Unlocked ${c.name}! ${c.icon || ''}`);
+    };
+  });
+}
+
+function renderProduceTab() {
+  let html = '';
+  // Crop produce rows (with auto-sell toggles)
+  for (const id of CROP_IDS) {
+    const c = CROPS[id];
+    const owned = state.inventoryProduce[id] || 0;
+    const colorHex = '#' + c.produceColor.toString(16).padStart(6, '0');
+    const autoOn = state.autoSell[id] === true;
+    html += `
+      <div class="crop-row">
+        <div>
+          <div class="name"><span class="crop-icon" style="background:${colorHex}"></span>${c.name}</div>
+          <div class="inventory-line">Owned: ×${owned} · Value: 🪙${owned * c.sellPrice}</div>
+          <div class="auto-sell-row" style="margin-top:5px">
+            Auto-sell on harvest:
+            <label class="toggle-switch">
+              <input type="checkbox" data-autosell="${id}" ${autoOn ? 'checked' : ''}>
+              <span class="toggle-track"></span>
+            </label>
+            <span style="opacity:.7">(🪙${c.sellPrice}/ea)</span>
+          </div>
+        </div>
+        <div class="meta">
+          Sells for 🪙${c.sellPrice} each
+        </div>
+        <div class="actions">
+          <button class="small success" data-sell="${id}" data-qty="1"   ${owned < 1 ? 'disabled' : ''}>Sell 1</button>
+          <button class="small success" data-sell="${id}" data-qty="all" ${owned < 1 ? 'disabled' : ''}>Sell All</button>
+        </div>
+      </div>`;
+  }
+  // Eggs row (only if the coop is owned OR there are eggs to sell)
+  if (state.coopOwned || (state.inventoryProduce.eggs || 0) > 0) {
+    const eggs = state.inventoryProduce.eggs || 0;
+    html += `
+      <div class="crop-row">
+        <div>
+          <div class="name">🥚 Eggs</div>
+          <div class="inventory-line">Owned: ×${eggs} · Value: 🪙${eggs * EGG_SELL_PRICE}</div>
+        </div>
+        <div class="meta">
+          Sells for 🪙${EGG_SELL_PRICE} each<br>
+          Laid at sunrise (07:00) by the coop
+        </div>
+        <div class="actions">
+          <button class="small success" data-sell-egg="1"   ${eggs < 1 ? 'disabled' : ''}>Sell 1</button>
+          <button class="small success" data-sell-egg="all" ${eggs < 1 ? 'disabled' : ''}>Sell All</button>
+        </div>
+      </div>`;
+  }
+  storeContentEl.innerHTML = html;
+
+  storeContentEl.querySelectorAll('[data-sell]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.sell;
+      const qty = btn.dataset.qty;
+      const owned = state.inventoryProduce[id] || 0;
+      if (owned <= 0) return;
+      const n = qty === 'all' ? owned : 1;
+      const earned = n * CROPS[id].sellPrice;
+      earnCoins(earned);
+      state.inventoryProduce[id] = owned - n;
+      saveState();
+      updateHUD();
+      buildStore();
+      flashMessage(`Sold ${n}× ${CROPS[id].name} for 🪙${earned}.`);
+    };
+  });
+  storeContentEl.querySelectorAll('[data-sell-egg]').forEach(btn => {
+    btn.onclick = () => {
+      const qty = btn.dataset.sellEgg;
+      const owned = state.inventoryProduce.eggs || 0;
+      if (owned <= 0) return;
+      const n = qty === 'all' ? owned : 1;
+      const earned = n * EGG_SELL_PRICE;
+      earnCoins(earned);
+      state.inventoryProduce.eggs = owned - n;
+      saveState();
+      updateHUD();
+      buildStore();
+      flashMessage(`Sold ${n} egg${n > 1 ? 's' : ''} for 🪙${earned}.`);
+    };
+  });
+  storeContentEl.querySelectorAll('[data-autosell]').forEach(cb => {
+    cb.onchange = () => {
+      const id = cb.dataset.autosell;
+      state.autoSell[id] = cb.checked;
+      saveState();
+      flashMessage(cb.checked ? `Auto-sell ON for ${CROPS[id].name}` : `Auto-sell OFF for ${CROPS[id].name}`);
+    };
+  });
+}
+
+function renderBuildingsTab() {
+  const owned = state.coopOwned;
+  let html = `
+    <div class="crop-row">
+      <div>
+        <div class="name">🐔 Chicken Coop ${owned ? '<span class="owned-badge">OWNED</span>' : ''}</div>
+        <div class="inventory-line">Lays 1 egg every day at sunrise (07:00) — worth 🪙${EGG_SELL_PRICE} each</div>
+      </div>
+      <div class="meta">
+        Cost: 🪙${COOP_COST}<br>
+        Auto-placed in the back-right corner.<br>
+        Footprint: ~4 plots' worth of space.
+      </div>
+      <div class="actions">
+        ${owned
+          ? `<span style="font-size:11px;color:#6b8a4e;font-weight:bold">Producing eggs!</span>`
+          : `<button class="small" data-buy-building="coop" ${state.coins < COOP_COST ? 'disabled' : ''}>Buy 🪙${COOP_COST}</button>`
+        }
+      </div>
+    </div>`;
+  storeContentEl.innerHTML = html;
+  storeContentEl.querySelectorAll('[data-buy-building]').forEach(btn => {
+    btn.onclick = () => {
+      const which = btn.dataset.buyBuilding;
+      if (which === 'coop') {
+        if (state.coins < COOP_COST || state.coopOwned) return;
+        state.coins -= COOP_COST;
+        state.coopOwned = true;
+        // Baseline: don't credit any past 07:00 crossings — next egg drops at the next sunrise.
+        const T = getGameTime().totalDaysF;
+        state.coopLastEggCrossing = (T < 7/24) ? 0 : Math.floor(T - 7/24) + 1;
+        syncCoopToScene();
+        saveState();
+        updateHUD();
+        buildStore();
+        flashMessage(`Chicken Coop installed! 🐔 Eggs lay at sunrise (07:00).`);
+      }
+    };
+  });
+}
+
+function renderDecorationsTab() {
+  const usedSlots = new Set(state.decorations.map(d => d.slot));
+  const freeSlot = nextFreeDecorationSlot();
+  let html = '';
+  // Info banner
+  html += `<div class="inventory-line" style="margin-bottom:10px">Slots used: ${state.decorations.length} / ${DECORATION_SLOTS.length}. Each purchase is auto-placed in the next free slot.</div>`;
+  for (const id of DECORATION_IDS) {
+    const d = DECORATIONS[id];
+    const ownedCount = state.decorations.filter(x => x.type === id).length;
+    const canAfford = state.coins >= d.cost;
+    const hasSlot = freeSlot >= 0;
+    html += `
+      <div class="decoration-row">
+        <div class="icon">${d.icon}</div>
+        <div>
+          <div class="name">${d.name}${ownedCount > 0 ? ` <span class="owned-badge">×${ownedCount}</span>` : ''}</div>
+          <div class="meta">Cost: 🪙${d.cost}</div>
+        </div>
+        <div class="actions">
+          <button class="small" data-buy-deco="${id}" ${!canAfford || !hasSlot ? 'disabled' : ''}>${!hasSlot ? 'Yard full' : `Buy 🪙${d.cost}`}</button>
+        </div>
+      </div>`;
+  }
+  storeContentEl.innerHTML = html;
+  storeContentEl.querySelectorAll('[data-buy-deco]').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.buyDeco;
+      const d = DECORATIONS[id];
+      if (!d || state.coins < d.cost) return;
+      const slot = nextFreeDecorationSlot();
+      if (slot < 0) { flashMessage('Yard is full!'); return; }
+      state.coins -= d.cost;
+      state.decorations.push({ type: id, slot });
+      syncDecorationsToScene();
+      saveState();
+      updateHUD();
+      buildStore();
+      flashMessage(`Placed ${d.name}! ${d.icon}`);
+    };
+  });
+}
+
+/* ============================================================
+   FLASH (toast)
+============================================================ */
+const flashEl = document.getElementById('flash');
+let flashTimer = null;
+function flashMessage(msg) {
+  flashEl.textContent = msg;
+  flashEl.style.display = 'block';
+  if (flashTimer) clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { flashEl.style.display = 'none'; }, 2000);
+}
+
+/* ============================================================
+   SEASON THEME + DAY/NIGHT CYCLE
+============================================================ */
+let currentSeason = null;
+let seasonTheme = SEASON_THEMES.Spring;
+
+// Season just updates the *daytime target colors* — actual light/bg values are
+// computed every frame by updateDayNight based on time of day.
+function applySeasonTheme() {
+  const t = getGameTime();
+  if (t.season === currentSeason) return;
+  currentSeason = t.season;
+  seasonTheme = SEASON_THEMES[t.season];
+  if (dirLight) dirLight.color.setHex(seasonTheme.dir);
+  if (grassMesh) grassMesh.material.color.setHex(seasonTheme.grass);
+}
+
+// One full sun cycle per game day. Game starts at noon (dayFraction = 0):
+//   0.00 → noon (sun overhead)
+//   0.25 → sunset (sun on +X horizon)
+//   0.50 → midnight (sun below)
+//   0.75 → sunrise (sun on -X horizon)
+// Night targets — chosen to read as "moonlit twilight" rather than "pitch dark"
+const NIGHT_SKY_HEX     = 0x2e3e72;   // brighter midnight blue
+const NIGHT_AMBIENT_HEX = 0x8a9cd0;   // pale blue ambient (moonlight feel)
+const SUN_WARM_HEX      = 0xff7a30;
+const SUN_BRIGHT_HEX    = 0xffe07a;
+const SUN_GLOW_WARM     = 0xff5020;
+const SUN_GLOW_BRIGHT   = 0xffeaa0;
+const SUN_ARC_RADIUS    = 6.0;
+const SUN_BASE_Y        = 1.0;
+const SUN_Z             = -6;
+
+// Tree canopy shading targets
+const CANOPY_DAY_HEX        = 0x5fa84f;
+const CANOPY_DARK_DAY_HEX   = 0x478a3a;
+const CANOPY_NIGHT_HEX      = 0x3d5a55;
+const CANOPY_DARK_NIGHT_HEX = 0x2c4540;
+const CANOPY_WARM_HEX       = 0xc89860;   // golden-hour tint blended in at the horizons
+
+// Exposed to other systems (e.g. the chicken animation) so they can react to day/night
+let currentDayStrength = 1;
+
+function updateDayNight() {
+  const t = getGameTime();
+  const tod = t.totalDaysF - Math.floor(t.totalDaysF);   // 0..1 within current game day
+  // Anchor the sun arc to the in-game clock so daytime is 07:00–19:00 and night is 19:00–07:00.
+  //   07:00 (tod=7/24)  → sunrise (sun at -X horizon)
+  //   13:00 (tod=13/24) → solar noon (sun at peak; midpoint of the 12-hour day window)
+  //   19:00 (tod=19/24) → sunset  (sun at +X horizon)
+  //   01:00 (tod=1/24)  → deepest night (sun far below horizon)
+  const phase = (tod - 13 / 24) * 2 * Math.PI;
+  const sinPhase = Math.sin(phase);                       // azimuth-ish
+  const cosPhase = Math.cos(phase);                       // elevation-ish (1 at noon, -1 at midnight)
+
+  // Sun arcs from -X (sunrise) → overhead → +X (sunset) → below ground (night)
+  const sunX = sinPhase * SUN_ARC_RADIUS;
+  const sunY = cosPhase * SUN_ARC_RADIUS + SUN_BASE_Y;
+  if (sunMesh) {
+    sunMesh.position.set(sunX, sunY, SUN_Z);
+    sunMesh.visible = sunY > 0.3;                         // hide when below horizon
+  }
+
+  // Moon mirrors the sun on the opposite arc — visible at night, hidden during the day.
+  const moonX = -sinPhase * SUN_ARC_RADIUS;
+  const moonY = -cosPhase * SUN_ARC_RADIUS + SUN_BASE_Y;
+  if (moonMesh) {
+    moonMesh.position.set(moonX, moonY, SUN_Z);
+    moonMesh.visible = moonY > 0.3;
+    // Subtle face-the-camera so the craters stay visible
+    moonMesh.lookAt(camera.position);
+  }
+
+  // Day strength: clamp(cos * 1.4 + 0.4) — full day around noon, full night around midnight,
+  // smooth twilight at dawn/dusk.
+  const dayStrength = Math.max(0, Math.min(1, cosPhase * 1.4 + 0.4));
+  currentDayStrength = dayStrength;     // expose for other systems (chickens, etc.)
+  // Horizon-ness: peaks 1 at sunrise/sunset, drops to 0 at noon/midnight.
+  const horizonness = Math.max(0, 1 - Math.abs(cosPhase) * 2);
+
+  // Sun color warms at horizon (low elevation), bright yellow at noon
+  if (sunMesh && sunMesh.userData.coreMat) {
+    const blend = Math.max(0, Math.min(1, cosPhase * 2));
+    sunMesh.userData.coreMat.color.setHex(lerpColorHex(SUN_WARM_HEX, SUN_BRIGHT_HEX, blend));
+    if (sunMesh.userData.glowMat) {
+      sunMesh.userData.glowMat.color.setHex(lerpColorHex(SUN_GLOW_WARM, SUN_GLOW_BRIGHT, blend));
+    }
+  }
+
+  // Lights: brighter night floor + softer day peak so it never feels pitch black.
+  ambient.intensity  = 0.55 + dayStrength * 0.35;          // 0.55 at night → 0.90 at noon
+  dirLight.intensity = dayStrength * 0.85;
+  ambient.color.setHex(lerpColorHex(NIGHT_AMBIENT_HEX, seasonTheme.ambient, dayStrength));
+
+  // Bonus "moonlight" via the fill light: a little brighter and bluer at night.
+  if (typeof fillLight !== 'undefined') {
+    fillLight.intensity = 0.18 + (1 - dayStrength) * 0.22;  // 0.18 day → 0.40 night
+    fillLight.color.setHex(lerpColorHex(0x6e88c8, 0xc8d8ff, dayStrength));
+  }
+
+  // Background: lerp between night sky and the season's day sky
+  const skyHex = lerpColorHex(NIGHT_SKY_HEX, seasonTheme.sky, dayStrength);
+  scene.background.setHex(skyHex);
+  renderer.setClearColor(skyHex);
+
+  // Tree (and bush) canopy shading: lerp day↔night, plus a warm "golden hour" tint at horizons.
+  // Damp the warm tint at deep night so trees don't unrealistically warm-shift at 2am.
+  const warmAmount = horizonness * 0.35 * Math.max(0, dayStrength + 0.15);
+  let canopyHex = lerpColorHex(CANOPY_NIGHT_HEX, CANOPY_DAY_HEX, dayStrength);
+  canopyHex = lerpColorHex(canopyHex, CANOPY_WARM_HEX, warmAmount);
+  MAT.canopy.color.setHex(canopyHex);
+
+  let canopyDarkHex = lerpColorHex(CANOPY_DARK_NIGHT_HEX, CANOPY_DARK_DAY_HEX, dayStrength);
+  canopyDarkHex = lerpColorHex(canopyDarkHex, CANOPY_WARM_HEX, warmAmount);
+  MAT.canopyDark.color.setHex(canopyDarkHex);
+}
+
+/* ============================================================
+   GAME LOOP
+============================================================ */
+let lastTick = 0, lastSave = Date.now(), lastSmokeUpdate = 0, lastChickenTime = Date.now();
+function animate() {
+  requestAnimationFrame(animate);
+  const now = Date.now();
+
+  // Accumulate time-warp boost while speedMultiplier > 1
+  if (speedMultiplier > 1) {
+    const realDelta = now - lastSpeedTick;
+    state.timeAccelMs += realDelta * (speedMultiplier - 1);
+  }
+  lastSpeedTick = now;
+
+  // Day/night cycle — driven by game time so sun and sky speed up with the time-warp.
+  updateDayNight();
+
+  // Chicken animation (real-time paced regardless of game speed)
+  const realDt = Math.min(0.05, (now - lastChickenTime) / 1000);
+  lastChickenTime = now;
+  updateChickens(realDt);
+
+  // Smoke wobble + cloud drift — both driven by game time so they speed up
+  // with the time-warp multiplier.
+  if (now - lastSmokeUpdate > 50) {
+    const tGame = gameNow() * 0.001;
+    if (smokeGroup) {
+      for (const s of smokeGroup.children) {
+        const b = s.userData.base;
+        s.position.y = b.y + Math.sin(tGame + b.phase) * 0.08;
+        s.position.x = 0.6 + Math.sin(tGame * 0.7 + b.phase) * 0.05;
+      }
+    }
+    if (cloudGroup) {
+      // Slow horizontal drift across the sky, wrap when off-screen
+      const driftSpan = 8.0;
+      for (const c of cloudGroup.children) {
+        const u = c.userData;
+        const driftSpeed = 0.18; // game units per game second
+        let dx = ((tGame * driftSpeed) + u.driftPhase) % driftSpan;
+        if (dx > driftSpan / 2) dx -= driftSpan;     // [-driftSpan/2 .. +driftSpan/2]
+        c.position.x = u.baseX + dx;
+        c.position.y = u.baseY + Math.sin(tGame * 0.6 + u.driftPhase) * 0.06;
+      }
+    }
+    lastSmokeUpdate = now;
+  }
+
+  // Animate ready-to-harvest indicators (rotate + bob) and pulse the soil tile
+  // of ready plots so they catch the eye.
+  const bobT = now * 0.003;
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.005);
+  for (let i = 0; i < NUM_PLOTS; i++) {
+    const ready = plotReadyContainers[i];
+    if (ready && ready.children.length > 0) {
+      const star = ready.children[0];
+      star.rotation.y = bobT * 1.4;
+      star.position.y = Math.sin(bobT + i * 0.5) * 0.08;
+      // Soil pulse for ready plots — overrides hover tint
+      const c = plotSoilTops[i].material.color;
+      c.setRGB(0.54 + 0.16 * pulse, 0.40 + 0.18 * pulse, 0.30 + 0.08 * pulse);
+    } else {
+      // Sync to hover-or-default color (handles edge cases like just-harvested-while-hovered)
+      const targetHex = (i === hoveredPlotIndex) ? 0xa87a52 : 0x8b5d3a;
+      if (plotSoilTops[i].material.color.getHex() !== targetHex) {
+        plotSoilTops[i].material.color.setHex(targetHex);
+      }
+    }
+  }
+
+  // Smooth, continuous crop growth: scale the crop container within each stage
+  // so you can see the plant getting bigger between stage transitions.
+  for (let i = 0; i < NUM_PLOTS; i++) {
+    const container = plotCropGroups[i];
+    const plot = state.plots[i];
+    if (plot.cropId && plot.plantedAt) {
+      const { progress } = getPlotProgress(plot);
+      const stage = container.userData.stage ?? 0;
+      const stageStart = STAGE_THRESHOLDS[stage] ?? 1;
+      const stageEnd   = STAGE_THRESHOLDS[stage + 1] ?? 1.0001;
+      const span = Math.max(0.0001, stageEnd - stageStart);
+      const subFrac = Math.min(1, Math.max(0, (progress - stageStart) / span));
+      let s;
+      if (stage >= MATURE_STAGE) {
+        s = 1.10;                                 // mature pop
+      } else {
+        // Progressive base scale across 0-12 stages, plus subFrac within-stage growth.
+        const stageBase = 0.50 + stage * 0.045;   // 0.50 → 1.04 across stages 0-12
+        s = stageBase + subFrac * 0.04;           // gentle within-stage growth
+      }
+      container.scale.set(s, s, s);
+    } else if (container.scale.x !== 1) {
+      container.scale.set(1, 1, 1);
+    }
+  }
+
+  // ~4Hz tick: check growth stages, refresh HUD clock + season, run coop egg production
+  if (now - lastTick > 250) {
+    let dirty = false;
+    for (let i = 0; i < NUM_PLOTS; i++) {
+      const plot = state.plots[i];
+      if (plot.cropId) {
+        const s = computeGrowthStage(plot);
+        if (s !== plotCropGroups[i].userData.stage) { dirty = true; break; }
+      }
+    }
+    if (dirty) rebuildCrops();
+
+    // Coop lays 1 egg per game day, *at 07:00 sunrise* (synced to the in-game clock).
+    // We track the number of 07:00 crossings since game epoch and credit eggs for every
+    // newly-crossed sunrise. Offline progress works naturally — if you skip 5 game days
+    // you come back to 5 eggs.
+    if (state.coopOwned) {
+      const T = getGameTime().totalDaysF;
+      // crossing N happens at totalDaysF = N + 7/24. Number of crossings done so far:
+      const sunriseCount = (T < 7/24) ? 0 : Math.floor(T - 7/24) + 1;
+      if (state.coopLastEggCrossing == null) {
+        // Baseline so we don't dump historical eggs on first tick after buying / loading
+        state.coopLastEggCrossing = sunriseCount;
+      }
+      const eggsLaid = sunriseCount - state.coopLastEggCrossing;
+      if (eggsLaid > 0) {
+        state.inventoryProduce.eggs = (state.inventoryProduce.eggs || 0) + eggsLaid;
+        state.coopLastEggCrossing = sunriseCount;
+        flashMessage(`🐔 Sunrise! Coop laid ${eggsLaid} egg${eggsLaid > 1 ? 's' : ''}!`);
+      }
+    }
+
+    updateHUD();
+    applySeasonTheme();
+    lastTick = now;
+  }
+
+  if (now - lastSave > SAVE_INTERVAL_MS) { saveState(); lastSave = now; }
+
+  renderer.render(scene, camera);
+}
+
+/* ============================================================
+   SPEED CONTROLS (debug)
+============================================================ */
+const speedIndicatorEl = document.getElementById('speed-indicator');
+const speedIndicatorValueEl = document.getElementById('speed-indicator-value');
+const speedBtns = document.querySelectorAll('.speed-btn');
+
+function setSpeed(mult) {
+  // settle any pending accumulation at the old rate before switching
+  const now = Date.now();
+  if (speedMultiplier > 1) {
+    state.timeAccelMs += (now - lastSpeedTick) * (speedMultiplier - 1);
+  }
+  lastSpeedTick = now;
+  speedMultiplier = mult;
+  speedBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.speed, 10) === mult));
+  if (mult > 1) {
+    speedIndicatorValueEl.textContent = mult;
+    speedIndicatorEl.style.display = 'block';
+  } else {
+    speedIndicatorEl.style.display = 'none';
+  }
+  saveState();
+}
+speedBtns.forEach(btn => {
+  btn.onclick = () => setSpeed(parseInt(btn.dataset.speed, 10));
+});
+
+applySeasonTheme();
+animate();
+
+// Online leaderboard: assign UUID, prompt for nickname on first run, kick off heartbeat
+maybePromptNicknameOnLoad();
+if (LEADERBOARD_ENABLED) {
+  upsertPlayer();
+  setInterval(() => { upsertPlayer(); flushEarnings(); }, 30000);
+}
+
+window.addEventListener('beforeunload', saveState);
+</script>
+</body>
+</html>
