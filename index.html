@@ -194,14 +194,28 @@
 
 <!-- Nickname prompt (shown once on first launch, also opened via "Change nickname") -->
 <div class="modal-bg" id="nick-modal">
-  <div class="modal" style="max-width: 420px;">
+  <div class="modal" style="max-width: 460px;">
     <h2>🌱 What's your gardener name?</h2>
     <div style="font-size: 13px; color: #6b5a45; line-height: 1.5;">
       Pick a nickname so others can see you on the 🏆 leaderboard.
       You can change this any time.
     </div>
     <input type="text" id="nick-input" class="nick-input" maxlength="24" placeholder="e.g. RadishKing" autocomplete="off">
-    <div style="font-size: 11px; color: #8a7a60; margin-top: 6px;">2–24 characters. Letters, numbers, spaces.</div>
+    <div style="font-size: 11px; color: #8a7a60; margin-top: 6px;">2–24 characters. Letters, numbers, spaces. Must be unique.</div>
+
+    <details id="nick-recovery" style="margin-top: 18px; border-top: 1px solid #e8d8b8; padding-top: 12px;">
+      <summary style="cursor: pointer; font-size: 12px; color: #8b5a2b; font-weight: bold;">
+        Continuing on a new device or browser? Use a recovery code
+      </summary>
+      <div style="font-size: 12px; color: #6b5a45; line-height: 1.5; margin-top: 10px;">
+        Paste your <strong>recovery code</strong> (a UUID) from another browser to load your existing player and pick up where you left off. You can find it inside 🏆 Leaderboard on the device you played on.
+      </div>
+      <input type="text" id="recovery-input" class="nick-input" placeholder="e.g. 7c3a8f4d-...-..." autocomplete="off">
+      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button id="recovery-load" class="small">Load player</button>
+      </div>
+    </details>
+
     <div class="modal-footer">
       <button id="nick-save">Save</button>
     </div>
@@ -217,6 +231,17 @@
       <span class="name" id="lb-self-nick">—</span>
       <button class="small" onclick="window.changeNickname()" style="margin-left: auto;">Change nickname</button>
     </div>
+
+    <details style="margin-bottom: 14px; font-size: 12px; color: #6b5a45;">
+      <summary style="cursor: pointer; font-weight: bold;">🔑 Playing across devices? Show recovery code</summary>
+      <div style="margin-top: 8px; line-height: 1.5;">
+        Copy this code, then on another browser open the nickname prompt and paste it under "Use a recovery code". Your player and progress are restored.
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+        <code id="lb-self-id" style="background: #f5edd6; padding: 6px 10px; border-radius: 6px; font-family: monospace; font-size: 11px; overflow-x: auto; flex: 1; user-select: all;">—</code>
+        <button class="small" onclick="window.copyRecoveryCode()">Copy</button>
+      </div>
+    </details>
 
     <div class="store-tabs" id="lb-tabs">
       <button class="store-tab active" data-lb="now">🪙 Coins Now</button>
@@ -509,9 +534,34 @@ function isValidNickname(s) {
   const trimmed = s.trim();
   return /^[A-Za-z0-9 _\-.]{2,24}$/.test(trimmed);
 }
+function isValidUuid(s) {
+  if (!s) return false;
+  // Lenient: accept standard UUIDs *and* the fallback "p-<base36>-<base36>" id format
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim())
+      || /^p-[0-9a-z]+-[0-9a-z]+$/i.test(s.trim());
+}
+
+// Returns the conflicting player row (id, nickname) if another player already owns this nickname,
+// or null otherwise. Match is case-insensitive after trim.
+async function findNicknameOwner(nick) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, nickname')
+      .ilike('nickname', nick.trim())
+      .limit(2);
+    if (error) return null;
+    const others = (data || []).filter(r => r.id !== state.playerId);
+    return others[0] || null;
+  } catch { return null; }
+}
 
 function openNickname(initial) {
   nickInputEl.value = initial || state.playerName || '';
+  // Hide the recovery section by default; it can be expanded by the user
+  const rec = document.getElementById('nick-recovery');
+  if (rec) rec.open = false;
   nickModalEl.classList.add('open');
   setTimeout(() => nickInputEl.focus(), 50);
 }
@@ -525,6 +575,16 @@ nickSaveEl.onclick = async () => {
     flashMessage('Nickname must be 2–24 letters/numbers/spaces.');
     return;
   }
+  // Uniqueness check (when online)
+  if (supabase) {
+    const owner = await findNicknameOwner(raw);
+    if (owner) {
+      flashMessage(`"${raw}" is already taken. Pick a different name, or paste your recovery code if it's yours.`);
+      const rec = document.getElementById('nick-recovery');
+      if (rec) rec.open = true;
+      return;
+    }
+  }
   state.playerName = raw;
   ensurePlayerId();
   saveState();
@@ -537,10 +597,50 @@ nickSaveEl.onclick = async () => {
 };
 nickInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') nickSaveEl.click(); });
 
+// Recovery code: paste an existing playerId to "claim" an account from another browser/device.
+// Looks up the player row, replaces local playerId + playerName with the server's values.
+async function applyRecoveryCode() {
+  const codeEl = document.getElementById('recovery-input');
+  const code = codeEl.value.trim();
+  if (!isValidUuid(code)) {
+    flashMessage('That doesn\'t look like a valid recovery code.');
+    return;
+  }
+  if (!supabase) {
+    flashMessage('Leaderboard isn\'t configured — nothing to recover from.');
+    return;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, nickname')
+      .eq('id', code)
+      .limit(1);
+    if (error) throw error;
+    const row = (data || [])[0];
+    if (!row) {
+      flashMessage('No player with that recovery code was found.');
+      return;
+    }
+    state.playerId   = row.id;
+    state.playerName = row.nickname;
+    saveState();
+    closeNickname();
+    refreshLeaderboardSelfRow();
+    flashMessage(`Welcome back, ${row.nickname}! 🌱`);
+  } catch (e) {
+    console.warn('recovery lookup failed', e);
+    flashMessage('Couldn\'t reach the leaderboard. Try again in a moment.');
+  }
+}
+
 window.changeNickname = function () {
   // Opened from inside the leaderboard modal
   openNickname(state.playerName);
 };
+
+// Recovery button inside the nickname modal
+document.getElementById('recovery-load').onclick = applyRecoveryCode;
 
 // Show the prompt on first launch (no name yet) unless Supabase is disabled
 function maybePromptNicknameOnLoad() {
@@ -578,7 +678,28 @@ window.closeLeaderboard = function () { lbModalEl.classList.remove('open'); };
 
 function refreshLeaderboardSelfRow() {
   lbSelfNickEl.textContent = state.playerName || '(no nickname yet)';
+  const idEl = document.getElementById('lb-self-id');
+  if (idEl) idEl.textContent = state.playerId || '(not set)';
 }
+
+window.copyRecoveryCode = async function () {
+  if (!state.playerId) { flashMessage('No recovery code yet.'); return; }
+  try {
+    await navigator.clipboard.writeText(state.playerId);
+    flashMessage('Recovery code copied! 🔑');
+  } catch {
+    // Fallback: select the code element so user can ctrl+c
+    const el = document.getElementById('lb-self-id');
+    if (el) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      flashMessage('Code selected — press Ctrl+C to copy.');
+    }
+  }
+};
 
 lbTabsEl.querySelectorAll('.store-tab').forEach(btn => {
   btn.onclick = () => {
