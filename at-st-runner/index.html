@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>AT-ST Runner</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #f7f7f7;
+    font-family: 'Courier New', ui-monospace, monospace;
+    color: #535353;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  .wrap { width: 100%; max-width: 820px; text-align: center; padding: 16px; }
+  h1 {
+    font-size: 13px; letter-spacing: 6px; margin: 0 0 14px;
+    color: #888; font-weight: normal;
+  }
+  #game {
+    width: 100%; aspect-ratio: 800 / 250;
+    background: #fff;
+    display: block;
+    border: 1px solid #e2e2e2;
+    border-radius: 2px;
+    touch-action: none;
+  }
+  .hint {
+    margin-top: 12px; font-size: 11px; color: #aaa; letter-spacing: 2px;
+  }
+  .hint kbd {
+    background: #eee; border: 1px solid #ccc; border-bottom-width: 2px;
+    border-radius: 3px; padding: 1px 5px; font-family: inherit; font-size: 10px;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A T - S T &nbsp; R U N N E R</h1>
+  <canvas id="game"></canvas>
+  <div class="hint">
+    <kbd>SPACE</kbd> / <kbd>&uarr;</kbd> jump &nbsp;&middot;&nbsp;
+    <kbd>&darr;</kbd> duck &nbsp;&middot;&nbsp;
+    tap to jump, swipe down to duck
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ============================================================
+// Canvas + hi-dpi setup (smooth vector rendering)
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const W = 800;                     // logical width
+const H = 250;                     // logical height
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+canvas.width = W * DPR;
+canvas.height = H * DPR;
+ctx.scale(DPR, DPR);
+ctx.imageSmoothingEnabled = true;
+ctx.lineJoin = 'round';
+ctx.lineCap = 'round';
+
+const GROUND_Y = 215;              // baseline where feet sit
+const GRAVITY = 0.55;
+const JUMP_V = -11.5;
+const FAST_FALL_G = 1.5;
+const START_SPEED = 5;
+const MAX_SPEED = 12;
+const SPEED_RAMP = 0.0012;         // per frame
+
+// Entity dimensions (logical px)
+const ATST_W = 56, ATST_H = 78;
+const ATST_DUCK_W = 58, ATST_DUCK_H = 46;
+const JEDI_W = 32, JEDI_TALL_H = 60;
+const YODA_W = 26, YODA_H = 34;
+const XWING_W = 100, XWING_H = 38;
+
+// ============================================================
+// Color palette
+// ============================================================
+const PALETTE = {
+  metalLight: '#eef0f2',
+  metalMid:   '#c2c5ca',
+  metalDark:  '#8d9096',
+  metalEdge:  '#5f6268',
+  panel:      '#70737a',
+  viewport:   '#222831',
+  viewportGlass: '#3b6ea5',
+  gun:        '#54575c',
+  robeLight:  '#34353c',
+  robeDark:   '#101116',
+  robeEdge:   '#000000',
+  skin:       '#caa078',
+  xwingLight: '#e3e5e8',
+  xwingMid:   '#b6b9be',
+  xwingDark:  '#90939a',
+  xwingEdge:  '#63666c',
+  red:        '#c0392b',
+  cockpit:    '#26303c',
+  engineGlow: '#ff7a3c',
+  saberCore:  '#eaffea',
+};
+
+// vertical metal gradient helper
+function vgrad(yTop, yBot, c0, c1, c2) {
+  const g = ctx.createLinearGradient(0, yTop, 0, yBot);
+  g.addColorStop(0, c0);
+  if (c2) { g.addColorStop(0.5, c1); g.addColorStop(1, c2); }
+  else g.addColorStop(1, c1);
+  return g;
+}
+
+// ============================================================
+// Lightsaber (smooth, layered glow)
+// ============================================================
+const SABER_COLORS = {
+  green: { g1d: 'rgba(70,220,70,0.22)',  g1n: 'rgba(120,255,120,0.30)',
+           g2d: 'rgba(110,235,110,0.50)', g2n: 'rgba(150,255,150,0.55)', core: '#eaffea' },
+  blue:  { g1d: 'rgba(70,140,255,0.22)', g1n: 'rgba(120,170,255,0.34)',
+           g2d: 'rgba(110,170,255,0.50)', g2n: 'rgba(150,200,255,0.60)', core: '#eaf3ff' },
+};
+function drawSaber(x, y, dx, dy, isNight, color) {
+  const c = SABER_COLORS[color] || SABER_COLORS.green;
+  const x2 = x + dx, y2 = y + dy;
+  ctx.lineCap = 'round';
+  // outer glow
+  ctx.strokeStyle = isNight ? c.g1n : c.g1d;
+  ctx.lineWidth = 10; line(x, y, x2, y2);
+  ctx.strokeStyle = isNight ? c.g2n : c.g2d;
+  ctx.lineWidth = 5.5; line(x, y, x2, y2);
+  // bright core
+  ctx.strokeStyle = c.core;
+  ctx.lineWidth = 2.4; line(x, y, x2, y2);
+  // hilt (short stub the other way from the hand)
+  const hl = 7, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
+  ctx.strokeStyle = '#2b2b2f';
+  ctx.lineWidth = 4; line(x, y, x - ux * hl, y - uy * hl);
+  ctx.strokeStyle = '#6a6a70';
+  ctx.lineWidth = 1.5; line(x - ux * 2, y - uy * 2, x - ux * hl, y - uy * hl);
+}
+function line(x1, y1, x2, y2) {
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+}
+
+// ============================================================
+// AT-ST (vector, facing right)
+// ============================================================
+function drawAtstLeg(hipX, hipY, footY, swing, near) {
+  const kneeX = hipX + 9;
+  const kneeY = hipY + (footY - hipY) * 0.48;
+  const ankleX = hipX + 1 + swing * 5;
+  const ankleY = footY - 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // upper + lower leg
+  ctx.strokeStyle = near ? PALETTE.metalMid : PALETTE.metalDark;
+  ctx.lineWidth = near ? 8 : 7;
+  ctx.beginPath();
+  ctx.moveTo(hipX, hipY);
+  ctx.lineTo(kneeX, kneeY);
+  ctx.lineTo(ankleX, ankleY);
+  ctx.stroke();
+  // knee joint
+  ctx.fillStyle = PALETTE.panel;
+  ctx.beginPath(); ctx.arc(kneeX, kneeY, 3.6, 0, Math.PI * 2); ctx.fill();
+  // foot pad (angled pod, toe forward)
+  ctx.fillStyle = near ? PALETTE.metalMid : PALETTE.metalDark;
+  ctx.strokeStyle = PALETTE.metalEdge;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ankleX - 7, footY - 3);
+  ctx.lineTo(ankleX + 10, footY - 4);
+  ctx.lineTo(ankleX + 11, footY + 1);
+  ctx.lineTo(ankleX - 6, footY + 2);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+}
+
+function drawAtstHead(ox, oy, isNight) {
+  const hx = ox + 3, hy = oy + 1, hw = 47, hh = 33;
+  // command pod body
+  ctx.beginPath();
+  ctx.moveTo(hx + 5, hy);
+  ctx.lineTo(hx + hw - 3, hy + 2);
+  ctx.lineTo(hx + hw, hy + 11);
+  ctx.lineTo(hx + hw - 1, hy + hh - 9);
+  ctx.lineTo(hx + hw - 9, hy + hh);
+  ctx.lineTo(hx + 7, hy + hh);
+  ctx.lineTo(hx, hy + hh - 9);
+  ctx.lineTo(hx + 1, hy + 9);
+  ctx.closePath();
+  ctx.fillStyle = vgrad(hy, hy + hh, PALETTE.metalLight, PALETTE.metalMid, PALETTE.metalDark);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.metalEdge;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // top hatch / antenna
+  ctx.strokeStyle = PALETTE.panel;
+  ctx.lineWidth = 1;
+  line(hx + 12, hy + 3, hx + hw - 10, hy + 4);
+  ctx.strokeStyle = PALETTE.metalEdge;
+  ctx.lineWidth = 1.2;
+  line(hx + 10, hy, hx + 6, hy - 7);   // antenna
+
+  // side circular hatch (the round detail)
+  const ccx = hx + 14, ccy = hy + 18, cr = 8.5;
+  ctx.beginPath(); ctx.arc(ccx, ccy, cr, 0, Math.PI * 2);
+  ctx.fillStyle = vgrad(ccy - cr, ccy + cr, PALETTE.metalMid, PALETTE.metalDark);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.metalEdge; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(ccx, ccy, cr - 3.2, 0, Math.PI * 2);
+  ctx.strokeStyle = PALETTE.panel; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.arc(ccx, ccy, 1.6, 0, Math.PI * 2);
+  ctx.fillStyle = PALETTE.metalEdge; ctx.fill();
+
+  // viewport band (front / right face) — angled dark window
+  ctx.beginPath();
+  ctx.moveTo(hx + 26, hy + 9);
+  ctx.lineTo(hx + hw - 4, hy + 11);
+  ctx.lineTo(hx + hw - 4, hy + 20);
+  ctx.lineTo(hx + 26, hy + 19);
+  ctx.closePath();
+  ctx.fillStyle = PALETTE.viewport;
+  ctx.fill();
+  // glass glint
+  ctx.fillStyle = PALETTE.viewportGlass;
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(hx + 29, hy + 11, 6, 6);
+  ctx.globalAlpha = 1;
+  // window divider
+  ctx.strokeStyle = PALETTE.metalDark; ctx.lineWidth = 1;
+  line(hx + 37, hy + 10, hx + 37, hy + 19);
+
+  // chin guns (two short barrels, pointing down-forward)
+  ctx.strokeStyle = PALETTE.gun; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  line(hx + hw - 16, hy + hh - 1, hx + hw - 12, hy + hh + 7);
+  line(hx + hw - 12, hy + hh - 1, hx + hw - 8, hy + hh + 7);
+
+  // main gun barrel (sticks out front-right)
+  ctx.fillStyle = PALETTE.gun;
+  ctx.strokeStyle = PALETTE.metalEdge; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(hx + hw - 2, hy + 13);
+  ctx.lineTo(ox + ATST_W + 1, hy + 13.5);
+  ctx.lineTo(ox + ATST_W + 1, hy + 17);
+  ctx.lineTo(hx + hw - 2, hy + 17.5);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = PALETTE.panel;     // muzzle
+  ctx.fillRect(ox + ATST_W - 3, hy + 12.5, 3.5, 5.5);
+
+  if (isNight) {                     // subtle rim so it reads on dark bg
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(hx + 5, hy); ctx.lineTo(hx + hw - 3, hy + 2); ctx.stroke();
+  }
+}
+
+function drawAtstStanding(ox, oy, walk, isNight) {
+  const hipY = oy + 44, footY = oy + ATST_H;
+  const backHipX = ox + 21, frontHipX = ox + 31;
+  const sBack = walk === null ? 0 : Math.sin(walk);
+  const sFront = walk === null ? 0 : Math.sin(walk + Math.PI);
+  const bob = walk === null ? 0 : Math.abs(Math.sin(walk)) * 1.2;
+
+  // back leg first (depth)
+  drawAtstLeg(backHipX, hipY - bob, footY, sBack, false);
+  // front leg
+  drawAtstLeg(frontHipX, hipY - bob, footY, sFront, true);
+
+  // neck (under head, above hips)
+  ctx.fillStyle = vgrad(oy + 32, oy + 46, PALETTE.metalMid, PALETTE.metalDark);
+  ctx.strokeStyle = PALETTE.metalEdge; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(ox + 19, oy + 32 - bob);
+  ctx.lineTo(ox + 35, oy + 32 - bob);
+  ctx.lineTo(ox + 31, oy + 47 - bob);
+  ctx.lineTo(ox + 23, oy + 47 - bob);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // head on top
+  drawAtstHead(ox, oy - bob, isNight);
+}
+
+function drawAtstDuck(ox, oy, isNight) {
+  // squat: head sits low, legs folded tight
+  const hipY = oy + 30, footY = oy + ATST_DUCK_H;
+  // folded legs (deep bend, knees high & wide)
+  for (const [hipX, near] of [[ox + 18, false], [ox + 34, true]]) {
+    const kneeX = hipX + (near ? 8 : -8);
+    const kneeY = hipY + 4;
+    ctx.strokeStyle = near ? PALETTE.metalMid : PALETTE.metalDark;
+    ctx.lineWidth = near ? 8 : 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(kneeX, kneeY);
+    ctx.lineTo(hipX + (near ? 4 : -4), footY - 3);
+    ctx.stroke();
+    // foot
+    ctx.fillStyle = near ? PALETTE.metalMid : PALETTE.metalDark;
+    ctx.strokeStyle = PALETTE.metalEdge; ctx.lineWidth = 1;
+    const fx = hipX + (near ? 4 : -4);
+    ctx.beginPath();
+    ctx.moveTo(fx - 7, footY - 3); ctx.lineTo(fx + 9, footY - 4);
+    ctx.lineTo(fx + 10, footY + 1); ctx.lineTo(fx - 6, footY + 2);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // head (lowered)
+  drawAtstHead(ox, oy, isNight);
+}
+
+// ============================================================
+// Jedi (vector, hooded robe, facing left)
+// ============================================================
+// Hooded Jedi facing LEFT in a combat stance, both hands gripping an upright
+// lightsaber held forward. Near-black robes with cool-gray armor highlights,
+// a shoulder pauldron, gauntlets, armored boots and a long trailing cloak.
+// Drawn on a design grid (units where h=60), scaled by `u`. The glowing blade
+// itself is drawn separately (drawSaber).
+function drawJedi(ox, oy, h, isNight) {
+  const u = h / 60;
+  const cx = ox + JEDI_W / 2;
+  const PX = (d) => cx + d * u;
+  const PY = (d) => oy + d * u;
+  const edge   = isNight ? 'rgba(165,175,195,0.45)' : 'rgba(58,62,72,0.95)';
+  const rim    = isNight ? 'rgba(185,195,215,0.55)' : 'rgba(150,156,168,0.75)';
+  const armorHi = 'rgba(120,128,142,0.7)';
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // chunky armored boot: ankle (ax,ay), toe direction dir(-1 left / +1 right)
+  const boot = (ax, ay, dir) => {
+    ctx.fillStyle = '#15161a'; ctx.strokeStyle = edge; ctx.lineWidth = 1;
+    // greave
+    ctx.beginPath();
+    ctx.moveTo(ax - 3.4 * u, ay - 12 * u);
+    ctx.lineTo(ax + 3.4 * u, ay - 12 * u);
+    ctx.lineTo(ax + 3.6 * u, ay);
+    ctx.lineTo(ax - 3.6 * u, ay);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // foot
+    ctx.beginPath();
+    ctx.moveTo(ax - 3.6 * u, ay - 1 * u);
+    ctx.lineTo(ax + dir * 9 * u, ay - 0.5 * u);
+    ctx.lineTo(ax + dir * 9.5 * u, ay + 4 * u);
+    ctx.lineTo(ax - 3.6 * u, ay + 4.5 * u);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // top highlight + buckle segments
+    ctx.fillStyle = armorHi;
+    ctx.fillRect(ax - 3.4 * u, ay - 12 * u, 6.8 * u, 1.6 * u);
+    ctx.strokeStyle = 'rgba(95,100,112,0.7)'; ctx.lineWidth = 1;
+    line(ax - 3.2 * u, ay - 8 * u, ax + 3.2 * u, ay - 8 * u);
+    line(ax - 3.2 * u, ay - 4.5 * u, ax + 3.2 * u, ay - 4.5 * u);
+  };
+
+  // ---------- trailing cloak (behind everything) ----------
+  // narrow vertical drape from the shoulders that flares into a tattered hem
+  ctx.beginPath();
+  ctx.moveTo(PX(6), PY(15));
+  ctx.lineTo(PX(10), PY(40));
+  ctx.quadraticCurveTo(PX(21), PY(53), PX(20), PY(61));   // flare out low
+  ctx.lineTo(PX(15), PY(55));                              // tattered hem
+  ctx.lineTo(PX(12), PY(62));
+  ctx.lineTo(PX(8), PY(56));
+  ctx.lineTo(PX(5), PY(61));
+  ctx.lineTo(PX(3), PY(54));
+  ctx.quadraticCurveTo(PX(1), PY(36), PX(3), PY(18));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(oy, oy + h, '#211f1d', '#080706');
+  ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = rim; ctx.lineWidth = 1;     // outer-edge rim light
+  ctx.beginPath();
+  ctx.moveTo(PX(6), PY(15));
+  ctx.lineTo(PX(10), PY(40));
+  ctx.quadraticCurveTo(PX(21), PY(53), PX(20), PY(61));
+  ctx.stroke();
+
+  // ---------- back leg (right, extended back) ----------
+  ctx.strokeStyle = '#141519'; ctx.lineWidth = 6 * u;
+  ctx.beginPath();
+  ctx.moveTo(PX(3), PY(40)); ctx.lineTo(PX(10), PY(50)); ctx.lineTo(PX(13), PY(56));
+  ctx.stroke();
+  boot(PX(13), PY(56), +1);
+
+  // ---------- coat / robe skirt (knee-length, open front, tattered hem) ----------
+  ctx.beginPath();
+  ctx.moveTo(PX(-9), PY(31));
+  ctx.lineTo(PX(10), PY(31));
+  ctx.lineTo(PX(11), PY(44));
+  ctx.lineTo(PX(7), PY(49));
+  ctx.lineTo(PX(3), PY(44));
+  ctx.lineTo(PX(0), PY(50));
+  ctx.lineTo(PX(-4), PY(45));
+  ctx.lineTo(PX(-8), PY(49));
+  ctx.lineTo(PX(-11), PY(43));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(PY(31), oy + h, '#1a191d', '#0a0a0d');
+  ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1;   // center seam
+  line(PX(0), PY(33), PX(0), PY(48));
+
+  // ---------- front leg (left, planted & bent forward) ----------
+  ctx.strokeStyle = '#16171c'; ctx.lineWidth = 6.5 * u;
+  ctx.beginPath();
+  ctx.moveTo(PX(-3), PY(41)); ctx.lineTo(PX(-10), PY(49)); ctx.lineTo(PX(-12), PY(56));
+  ctx.stroke();
+  boot(PX(-12), PY(56), -1);
+
+  // ---------- torso ----------
+  ctx.beginPath();
+  ctx.moveTo(PX(-8), PY(16));
+  ctx.lineTo(PX(9), PY(16));
+  ctx.lineTo(PX(8), PY(33));
+  ctx.lineTo(PX(-8), PY(33));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(PY(16), PY(33), '#1b1c22', '#0c0c10');
+  ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  // chest tunic V
+  ctx.fillStyle = '#0e0e13';
+  ctx.beginPath();
+  ctx.moveTo(PX(-3), PY(17)); ctx.lineTo(PX(3), PY(17));
+  ctx.lineTo(PX(1), PY(29)); ctx.lineTo(PX(-1), PY(29));
+  ctx.closePath(); ctx.fill();
+
+  // ---------- belt ----------
+  ctx.fillStyle = '#08080a';
+  ctx.fillRect(PX(-8), PY(31), 17 * u, 3 * u);
+  ctx.fillStyle = '#34353c';
+  ctx.fillRect(PX(-1.5), PY(31), 3 * u, 3 * u);
+
+  // ---------- shoulder pauldron (near/front) ----------
+  ctx.beginPath();
+  ctx.moveTo(PX(-10), PY(16));
+  ctx.lineTo(PX(-1), PY(14.5));
+  ctx.lineTo(PX(-2), PY(22));
+  ctx.lineTo(PX(-10), PY(23));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(PY(14), PY(23), '#2b2d34', '#141519');
+  ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = armorHi; ctx.lineWidth = 1;
+  line(PX(-9.5), PY(16.5), PX(-1.5), PY(15));
+
+  // ---------- hood + head ----------
+  ctx.beginPath();
+  ctx.moveTo(PX(-8), PY(17));
+  ctx.quadraticCurveTo(PX(-8), PY(-1), PX(2), PY(0));      // front edge up to peak
+  ctx.quadraticCurveTo(PX(12), PY(3), PX(11), PY(18));     // back of hood
+  ctx.lineTo(PX(4), PY(15));
+  ctx.quadraticCurveTo(PX(-2), PY(13), PX(-8), PY(17));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(oy, PY(18), '#1f2027', '#0b0b0f');
+  ctx.fill();
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = rim; ctx.lineWidth = 1;                // top-back rim light
+  ctx.beginPath();
+  ctx.moveTo(PX(2), PY(0)); ctx.quadraticCurveTo(PX(12), PY(3), PX(11), PY(15));
+  ctx.stroke();
+  // shadowed face opening + skin hint (faces left)
+  ctx.fillStyle = '#050506';
+  ctx.beginPath(); ctx.ellipse(PX(-3), PY(9), 3.6 * u, 4.9 * u, -0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PALETTE.skin; ctx.globalAlpha = 0.85;
+  ctx.beginPath(); ctx.ellipse(PX(-3.6), PY(9.5), 1.5 * u, 2.5 * u, -0.1, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // ---------- arms + gauntlets (both reach forward to the hilt) ----------
+  const hx = PX(-15), hy = PY(31);
+  // far arm (behind torso)
+  ctx.strokeStyle = '#101116'; ctx.lineWidth = 4 * u;
+  ctx.beginPath();
+  ctx.moveTo(PX(6), PY(21)); ctx.lineTo(PX(-6), PY(28)); ctx.lineTo(hx + u, hy + u);
+  ctx.stroke();
+  // near arm
+  ctx.strokeStyle = '#191a20'; ctx.lineWidth = 5 * u;
+  ctx.beginPath();
+  ctx.moveTo(PX(-6), PY(20)); ctx.lineTo(PX(-11), PY(27)); ctx.lineTo(hx, hy);
+  ctx.stroke();
+  // gauntlet / vambrace highlight on the forearm
+  ctx.strokeStyle = armorHi; ctx.lineWidth = 2 * u;
+  line(PX(-11), PY(27), hx, hy);
+  // gloved hands gripping the hilt
+  ctx.fillStyle = '#0a0a0d';
+  ctx.beginPath(); ctx.ellipse(hx, hy, 3 * u, 3.8 * u, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+// Yoda: small green creature with big ears, in a tan robe, holding a small
+// saber upright in front. Facing LEFT. Design grid (units where h=34).
+function drawYoda(ox, oy, h, isNight) {
+  const u = h / 34;
+  const cx = ox + YODA_W / 2;
+  const PX = (d) => cx + d * u;
+  const PY = (d) => oy + d * u;
+  const skin = '#93a86a', skinSh = '#6f8548', skinHi = '#aebd86';
+  const robeSh = '#675b41', robeHi = '#a2926e';
+  const edge = isNight ? 'rgba(165,175,150,0.45)' : 'rgba(58,62,48,0.9)';
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // ---- ears (behind head) ----
+  ctx.fillStyle = skin; ctx.strokeStyle = edge; ctx.lineWidth = 1;
+  ctx.beginPath();   // front (left) ear
+  ctx.moveTo(PX(-4), PY(7)); ctx.lineTo(PX(-15), PY(5)); ctx.lineTo(PX(-4), PY(11.5));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath();   // back (right) ear
+  ctx.moveTo(PX(4), PY(7)); ctx.lineTo(PX(15), PY(4)); ctx.lineTo(PX(4), PY(11.5));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = skinSh;   // inner ear shadow
+  ctx.beginPath(); ctx.moveTo(PX(-5), PY(7.5)); ctx.lineTo(PX(-11), PY(6)); ctx.lineTo(PX(-5), PY(9.8)); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(PX(5), PY(7.5)); ctx.lineTo(PX(11), PY(5.5)); ctx.lineTo(PX(5), PY(9.8)); ctx.closePath(); ctx.fill();
+
+  // ---- robe body ----
+  ctx.beginPath();
+  ctx.moveTo(PX(-6), PY(15)); ctx.lineTo(PX(6), PY(15));
+  ctx.lineTo(PX(8), PY(30)); ctx.lineTo(PX(-8), PY(30));
+  ctx.closePath();
+  ctx.fillStyle = vgrad(PY(15), PY(30), robeHi, robeSh);
+  ctx.fill(); ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = robeSh;   // collar opening
+  ctx.beginPath(); ctx.moveTo(PX(-2.5), PY(15)); ctx.lineTo(PX(2.5), PY(15)); ctx.lineTo(PX(0), PY(23)); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,52,36,0.5)'; ctx.lineWidth = 1;
+  line(PX(-3), PY(18), PX(-4), PY(29)); line(PX(3), PY(18), PX(4), PY(29));
+
+  // ---- feet ----
+  ctx.fillStyle = skinSh; ctx.strokeStyle = edge; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(PX(-5), PY(31.5), 3.2 * u, 2 * u, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(PX(5), PY(31.5), 3.2 * u, 2 * u, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // ---- head ----
+  ctx.beginPath();
+  ctx.ellipse(PX(-0.5), PY(8.5), 7 * u, 6.6 * u, 0, 0, Math.PI * 2);
+  ctx.fillStyle = vgrad(PY(2), PY(15), skinHi, skin);
+  ctx.fill(); ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke();
+
+  // ---- face (facing left) ----
+  ctx.strokeStyle = skinSh; ctx.lineWidth = 1.4;            // brow ridge
+  line(PX(-6.5), PY(6.6), PX(-1), PY(6));
+  ctx.fillStyle = '#241f16';                                // eyes
+  ctx.beginPath(); ctx.ellipse(PX(-4.6), PY(8), 1.8 * u, 2.2 * u, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(PX(-1), PY(8.3), 1.4 * u, 1.9 * u, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';                  // glint
+  ctx.beginPath(); ctx.arc(PX(-5.1), PY(7.4), 0.55 * u, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = skinSh;                                   // nose/snout
+  ctx.beginPath(); ctx.ellipse(PX(-6.6), PY(10.2), 1.1 * u, 1.4 * u, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#4a3f2c'; ctx.lineWidth = 1;           // mouth
+  line(PX(-6), PY(12.2), PX(-1.5), PY(12.5));
+  ctx.strokeStyle = 'rgba(95,110,62,0.6)'; ctx.lineWidth = 1; // wrinkles
+  line(PX(-5), PY(4.6), PX(-1), PY(4.3));
+  line(PX(-3.5), PY(11), PX(-1), PY(11));
+
+  // ---- wispy white hair ----
+  ctx.strokeStyle = isNight ? 'rgba(232,226,208,0.85)' : 'rgba(225,220,205,0.9)';
+  ctx.lineWidth = 1;
+  line(PX(-2), PY(2.6), PX(-3), PY(0.4));
+  line(PX(0), PY(2), PX(0), PY(-0.5));
+  line(PX(2), PY(2.6), PX(3.2), PY(0.8));
+
+  // ---- arm + three-finger hand gripping the hilt ----
+  const hx = PX(-9), hy = PY(19);
+  ctx.strokeStyle = robeSh; ctx.lineWidth = 3.5 * u; ctx.lineCap = 'round';
+  line(PX(-3), PY(17), hx, hy);
+  ctx.fillStyle = skin; ctx.strokeStyle = edge; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(hx, hy, 2.5 * u, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = skinSh; ctx.lineWidth = 0.8;
+  line(hx - 1 * u, hy - 1.6 * u, hx - 1 * u, hy + 1.6 * u);
+}
+
+// ============================================================
+// X-wing (vector, side view, nose left)
+// ============================================================
+// X-wing, side view, nose LEFT. Layered back-to-front:
+// cannons -> wings+engines -> fuselage -> cockpit/details.
+function drawXwing(ox, oy, isNight) {
+  const cy = oy + XWING_H / 2;
+  const wingRootX = ox + 60;     // where wings meet the body
+  const engX = ox + 78;          // engine nacelle front
+  const tail = ox + XWING_W;
+
+  // ----- 4 long laser cannons (behind), projecting forward past the nose -----
+  // mounted at the 4 wingtips; upper pair high, lower pair low
+  drawCannon(ox - 8, engX, cy - 20);
+  drawCannon(ox - 8, engX, cy - 13);
+  drawCannon(ox - 8, engX, cy + 13);
+  drawCannon(ox - 8, engX, cy + 20);
+
+  // ----- S-foils (split wings) + engine nacelles, upper & lower -----
+  drawWing(ox, cy, wingRootX, engX, tail, -1, isNight);
+  drawWing(ox, cy, wingRootX, engX, tail, +1, isNight);
+
+  // ----- fuselage (slim, tapered nose) -----
+  ctx.beginPath();
+  ctx.moveTo(ox, cy);
+  ctx.quadraticCurveTo(ox + 14, cy - 8, ox + 40, cy - 9);
+  ctx.lineTo(ox + 70, cy - 8);
+  ctx.lineTo(tail, cy - 6);
+  ctx.lineTo(tail, cy + 6);
+  ctx.lineTo(ox + 70, cy + 8);
+  ctx.lineTo(ox + 40, cy + 9);
+  ctx.quadraticCurveTo(ox + 14, cy + 8, ox, cy);
+  ctx.closePath();
+  ctx.fillStyle = vgrad(cy - 9, cy + 9, PALETTE.xwingLight, PALETTE.xwingMid, PALETTE.xwingDark);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.xwingEdge; ctx.lineWidth = 1.4; ctx.stroke();
+
+  // nose cone
+  ctx.fillStyle = PALETTE.xwingDark;
+  ctx.beginPath();
+  ctx.moveTo(ox, cy); ctx.lineTo(ox + 14, cy - 5);
+  ctx.lineTo(ox + 14, cy + 5); ctx.closePath(); ctx.fill();
+
+  // red accent stripes
+  ctx.fillStyle = PALETTE.red;
+  ctx.fillRect(ox + 22, cy - 4, 12, 4);
+  ctx.fillRect(ox + 48, cy + 1, 6, 4);
+
+  // panel line
+  ctx.strokeStyle = 'rgba(80,84,90,0.55)'; ctx.lineWidth = 1;
+  line(ox + 40, cy + 4, ox + 70, cy + 4);
+
+  // cockpit canopy (raised, just ahead of the wings)
+  ctx.beginPath();
+  ctx.moveTo(ox + 40, cy - 9);
+  ctx.lineTo(ox + 56, cy - 12);
+  ctx.lineTo(ox + 60, cy - 7);
+  ctx.lineTo(ox + 42, cy - 6);
+  ctx.closePath();
+  ctx.fillStyle = PALETTE.cockpit; ctx.fill();
+  ctx.strokeStyle = PALETTE.xwingEdge; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(130,180,230,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(ox + 43, cy - 8); ctx.lineTo(ox + 50, cy - 10);
+  ctx.lineTo(ox + 50, cy - 7); ctx.closePath(); ctx.fill();
+
+  // R2 socket
+  ctx.fillStyle = '#9aa0a8';
+  ctx.beginPath(); ctx.arc(ox + 64, cy - 6, 2.2, 0, Math.PI * 2); ctx.fill();
+}
+
+// A single laser cannon: long thin barrel from tipX (front) to backX, at height y,
+// with a forked muzzle and a mid knob.
+function drawCannon(tipX, backX, y) {
+  ctx.strokeStyle = PALETTE.metalDark; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+  line(tipX, y, backX, y);
+  // muzzle fork
+  ctx.strokeStyle = PALETTE.metalEdge; ctx.lineWidth = 1.4;
+  line(tipX, y - 2.6, tipX, y + 2.6);
+  line(tipX + 3, y - 2, tipX + 3, y + 2);
+  // mid knob
+  ctx.fillStyle = PALETTE.panel;
+  ctx.beginPath(); ctx.arc((tipX + backX) / 2 + 14, y, 2.4, 0, Math.PI * 2); ctx.fill();
+}
+
+// One S-foil wing (side=-1 up, +1 down): swept plank from body to the cannon
+// mount, with a cylindrical engine nacelle at the rear and a red stripe.
+function drawWing(ox, cy, rootX, engX, tail, side, isNight) {
+  const tipY = cy + side * 17;        // outer (cannon-mount) height
+  // wing plank
+  ctx.beginPath();
+  ctx.moveTo(rootX, cy + side * 5);
+  ctx.lineTo(ox + 74, tipY);
+  ctx.lineTo(tail - 4, tipY);
+  ctx.lineTo(tail - 4, tipY - side * 6);
+  ctx.lineTo(rootX + 10, cy + side * 2);
+  ctx.closePath();
+  ctx.fillStyle = vgrad(Math.min(cy, tipY), Math.max(cy, tipY), PALETTE.xwingMid, PALETTE.xwingDark);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.xwingEdge; ctx.lineWidth = 1.2; ctx.stroke();
+
+  // red wing stripes near the tip
+  ctx.fillStyle = PALETTE.red;
+  ctx.fillRect(ox + 80, tipY - side * 5 - 1, 9, 2);
+  ctx.fillRect(ox + 80, tipY - side * 9 - 1, 9, 2);
+
+  // engine nacelle (cylinder) at the rear of the wing
+  const engY = tipY - side * 6;
+  ctx.beginPath();
+  ctx.moveTo(engX, engY - 5);
+  ctx.lineTo(tail, engY - 5);
+  ctx.quadraticCurveTo(tail + 5, engY, tail, engY + 5);
+  ctx.lineTo(engX, engY + 5);
+  ctx.quadraticCurveTo(engX - 3, engY, engX, engY - 5);
+  ctx.closePath();
+  ctx.fillStyle = vgrad(engY - 5, engY + 5, PALETTE.xwingLight, PALETTE.xwingDark);
+  ctx.fill();
+  ctx.strokeStyle = PALETTE.xwingEdge; ctx.lineWidth = 1.2; ctx.stroke();
+  // intake ring
+  ctx.strokeStyle = PALETTE.xwingEdge; ctx.lineWidth = 1;
+  line(engX + 3, engY - 4, engX + 3, engY + 4);
+  // engine glow at the rear
+  ctx.fillStyle = isNight ? '#ffd08a' : PALETTE.engineGlow;
+  ctx.beginPath(); ctx.ellipse(tail, engY, 2.2, 4, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+// ============================================================
+// Decorations
+// ============================================================
+function drawStar(x, y, r, a) {
+  ctx.globalAlpha = a;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+function drawDeathStar(x, y, r) {
+  // body sphere with top-left light
+  const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.45, r * 0.15, x, y, r * 1.05);
+  g.addColorStop(0, '#d6d9de');
+  g.addColorStop(0.55, '#9a9ea7');
+  g.addColorStop(1, '#565a62');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+
+  // equatorial trench
+  ctx.strokeStyle = 'rgba(52,55,63,0.9)'; ctx.lineWidth = Math.max(1.5, r * 0.09);
+  line(x - r * 1.1, y + r * 0.06, x + r * 1.1, y + r * 0.06);
+  ctx.strokeStyle = 'rgba(125,129,137,0.5)'; ctx.lineWidth = 1;
+  line(x - r * 1.1, y + r * 0.06 - r * 0.08, x + r * 1.1, y + r * 0.06 - r * 0.08);
+
+  // faint surface panel seams
+  ctx.strokeStyle = 'rgba(68,72,80,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - r, y + r * 0.5); ctx.quadraticCurveTo(x, y + r * 0.64, x + r, y + r * 0.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + r * 0.4, y - r); ctx.quadraticCurveTo(x + r * 0.22, y, x + r * 0.4, y + r); ctx.stroke();
+
+  // concave superlaser dish (upper-left hemisphere)
+  const ddx = x - r * 0.34, ddy = y - r * 0.40, dr = r * 0.34;
+  ctx.fillStyle = '#797d85';
+  ctx.beginPath(); ctx.arc(ddx, ddy, dr, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(44,47,55,0.85)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = '#5b5f69';
+  ctx.beginPath(); ctx.arc(ddx, ddy, dr * 0.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#9aa0aa';                                  // focal emitter
+  ctx.beginPath(); ctx.arc(ddx + dr * 0.12, ddy + dr * 0.06, dr * 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(44,47,55,0.5)'; ctx.lineWidth = 0.8; // dish radial lines
+  for (let a = 0; a < 6; a++) {
+    const ang = a * Math.PI / 3;
+    line(ddx, ddy, ddx + Math.cos(ang) * dr, ddy + Math.sin(ang) * dr);
+  }
+
+  ctx.restore();
+
+  // rim
+  ctx.strokeStyle = 'rgba(40,44,52,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+}
+
+// ============================================================
+// Game state
+// ============================================================
+const STATE = { IDLE: 0, RUNNING: 1, OVER: 2 };
+let state = STATE.IDLE;
+
+const atst = {
+  x: 60,
+  y: 0,
+  vy: 0,
+  isJumping: false,
+  isDucking: false,
+};
+
+let obstacles = [];
+let stars = [];
+let groundOffset = 0;
+let speed = START_SPEED;
+let score = 0;
+let highScore = +(localStorage.getItem('atst_hi') || 0);
+let frameCount = 0;
+let nextObstacleIn = 60;
+let isNight = false;
+let nightFlipScore = 300;
+let blinkTimer = 0;
+let scoreFlashTimer = 0;
+let walkPhase = 0;
+
+function resetGame() {
+  state = STATE.RUNNING;
+  obstacles = [];
+  speed = START_SPEED;
+  score = 0;
+  frameCount = 0;
+  nextObstacleIn = 60;
+  isNight = false;
+  nightFlipScore = 300;
+  walkPhase = 0;
+  atst.vy = 0;
+  atst.isJumping = false;
+  atst.isDucking = false;
+  atst.y = GROUND_Y - ATST_H;
+  initStars();
+}
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 32; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * 120,
+      r: 0.6 + Math.random() * 1.1,
+      tw: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+// ============================================================
+// Input
+// ============================================================
+function jump() {
+  if (state === STATE.OVER) { resetGame(); return; }
+  if (state === STATE.IDLE) { resetGame(); return; }
+  if (!atst.isJumping) {
+    atst.vy = JUMP_V;
+    atst.isJumping = true;
+    atst.isDucking = false;
+  }
+}
+function duckStart() {
+  if (state !== STATE.RUNNING) return;
+  atst.isDucking = true;
+}
+function duckEnd() { atst.isDucking = false; }
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); }
+  else if (e.code === 'ArrowDown') { e.preventDefault(); duckStart(); }
+  else if (e.code === 'KeyR' && state === STATE.OVER) { resetGame(); }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'ArrowDown') duckEnd();
+});
+
+let touchStartY = null;
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  touchStartY = e.touches[0].clientY;
+  jump();
+}, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  if (touchStartY == null) return;
+  if (e.touches[0].clientY - touchStartY > 30) duckStart();
+}, { passive: false });
+canvas.addEventListener('touchend', () => { touchStartY = null; duckEnd(); });
+canvas.addEventListener('mousedown', () => jump());
+
+// ============================================================
+// Obstacles
+// ============================================================
+function spawnObstacle() {
+  const r = Math.random();
+  let kind;
+  if (speed < 6.5) {
+    kind = r < 0.6 ? 'jedi_tall' : 'jedi_short';
+  } else {
+    if (r < 0.30) kind = 'jedi_tall';
+    else if (r < 0.50) kind = 'jedi_short';
+    else if (r < 0.65) kind = 'jedi_double';
+    else if (r < 0.85) kind = 'xwing_low';
+    else kind = 'xwing_high';
+  }
+
+  const ob = { kind, x: W + 10, y: 0, w: 0, h: 0 };
+
+  if (kind === 'jedi_tall' || kind === 'jedi_double') {
+    const jh = JEDI_TALL_H;
+    ob.jediH = jh;
+    ob.h = jh;
+    ob.y = GROUND_Y - jh;
+    ob.w = (kind === 'jedi_double') ? JEDI_W * 2 + 10 : JEDI_W;
+    ob.saberColor = 'blue';
+    // Saber held forward in both hands, blade upright (design grid u = jh/60).
+    const u = jh / 60;
+    ob.handX = Math.round(16 - 15 * u);
+    ob.handY = Math.round(31 * u);
+    ob.saberDX = Math.round(-2 * u);
+    ob.saberDY = Math.round(-38 * u);
+  } else if (kind === 'jedi_short') {       // Yoda — small, iconic green blade
+    ob.jediH = YODA_H;
+    ob.h = YODA_H;
+    ob.y = GROUND_Y - YODA_H;
+    ob.w = YODA_W;
+    ob.isYoda = true;
+    ob.saberColor = 'green';
+    ob.handX = 4;
+    ob.handY = 19;
+    ob.saberDX = -1;
+    ob.saberDY = -22;
+  } else if (kind === 'xwing_low') {
+    ob.w = XWING_W; ob.h = XWING_H;
+    ob.y = GROUND_Y - ATST_H - 2;     // overlaps standing head; duck to clear
+  } else if (kind === 'xwing_high') {
+    ob.w = XWING_W; ob.h = XWING_H;
+    ob.y = GROUND_Y - ATST_H - 50;    // overhead; only a jump can clip it
+  }
+
+  obstacles.push(ob);
+  const base = 60 + Math.random() * 60;
+  nextObstacleIn = Math.max(36, Math.floor(base * (START_SPEED / speed)));
+}
+
+// ============================================================
+// Collision
+// ============================================================
+function atstBox() {
+  const isDuckOnGround = atst.isDucking && !atst.isJumping;
+  const w = isDuckOnGround ? ATST_DUCK_W : ATST_W;
+  const h = isDuckOnGround ? ATST_DUCK_H : ATST_H;
+  const x = atst.x;
+  const y = isDuckOnGround ? GROUND_Y - h : atst.y;
+  return { x: x + 8, y: y + 6, w: w - 16, h: h - 10 };
+}
+
+function aabb(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function lineHitsBox(x1, y1, x2, y2, box) {
+  let t0 = 0, t1 = 1;
+  const dx = x2 - x1, dy = y2 - y1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - box.x, (box.x + box.w) - x1, y1 - box.y, (box.y + box.h) - y1];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) { if (q[i] < 0) return false; }
+    else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+      else { if (t < t0) return false; if (t < t1) t1 = t; }
+    }
+  }
+  return true;
+}
+
+function obstacleHits(ob, me) {
+  if (ob.kind === 'xwing_low' || ob.kind === 'xwing_high') {
+    return aabb(me, { x: ob.x + 16, y: ob.y + 9, w: XWING_W - 38, h: XWING_H - 17 });
+  }
+  const bw = ob.isYoda ? YODA_W : JEDI_W;
+  const positions = [ob.x];
+  if (ob.kind === 'jedi_double') positions.push(ob.x + JEDI_W + 10);
+  for (const px of positions) {
+    const body = { x: px + 4, y: ob.y + 4, w: bw - 8, h: ob.jediH - 6 };
+    if (aabb(me, body)) return true;
+    const hx = px + ob.handX, hy = ob.y + ob.handY;
+    if (lineHitsBox(hx, hy, hx + ob.saberDX, hy + ob.saberDY, me)) return true;
+  }
+  return false;
+}
+
+// ============================================================
+// Update
+// ============================================================
+function update() {
+  if (state !== STATE.RUNNING) return;
+  frameCount++;
+
+  if (speed < MAX_SPEED) speed += SPEED_RAMP;
+
+  const prevScore = Math.floor(score);
+  score += 0.1 * (speed / START_SPEED);
+  const curScore = Math.floor(score);
+  if (curScore !== prevScore && curScore % 100 === 0) scoreFlashTimer = 30;
+  if (curScore >= nightFlipScore) { isNight = !isNight; nightFlipScore += 300; }
+
+  if (atst.isJumping) {
+    const g = (atst.vy > 0 && atst.isDucking) ? FAST_FALL_G : GRAVITY;
+    atst.vy += g;
+    atst.y += atst.vy;
+    if (atst.y >= GROUND_Y - ATST_H) {
+      atst.y = GROUND_Y - ATST_H;
+      atst.vy = 0;
+      atst.isJumping = false;
+    }
+  }
+
+  // advance walk cycle only while on the ground (legs freeze mid-jump)
+  if (!atst.isJumping) walkPhase += speed * 0.07;
+
+  groundOffset = (groundOffset - speed) % 24;
+
+  nextObstacleIn--;
+  if (nextObstacleIn <= 0) spawnObstacle();
+
+  for (const ob of obstacles) ob.x -= speed;
+  obstacles = obstacles.filter(ob => ob.x + ob.w > -5);
+
+  const me = atstBox();
+  for (const ob of obstacles) {
+    if (obstacleHits(ob, me)) { gameOver(); return; }
+  }
+
+  for (const s of stars) s.tw += 0.05;
+  if (scoreFlashTimer > 0) scoreFlashTimer--;
+}
+
+function gameOver() {
+  state = STATE.OVER;
+  blinkTimer = 0;
+  const finalScore = Math.floor(score);
+  if (finalScore > highScore) {
+    highScore = finalScore;
+    localStorage.setItem('atst_hi', String(highScore));
+  }
+}
+
+// ============================================================
+// Render
+// ============================================================
+function draw() {
+  const bg = isNight ? '#10121a' : '#ffffff';
+  const fg = isNight ? '#cfd2d8' : '#535353';
+
+  // background (gradient sky for a touch of depth)
+  if (isNight) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a0c14'); g.addColorStop(1, '#161a26');
+    ctx.fillStyle = g;
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#f3f4f6');
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, W, H);
+
+  if (isNight) {
+    for (const s of stars) drawStar(s.x, s.y, s.r, 0.35 + 0.45 * Math.sin(s.tw));
+    drawDeathStar(W - 82, 50, 21);
+  }
+
+  // ground
+  ctx.strokeStyle = fg; ctx.lineWidth = 2; ctx.lineCap = 'butt';
+  line(0, GROUND_Y + 2, W, GROUND_Y + 2);
+  ctx.fillStyle = fg;
+  for (let x = groundOffset; x < W; x += 24) {
+    ctx.fillRect(x + 4, GROUND_Y + 6, 3, 2);
+    ctx.fillRect(x + 14, GROUND_Y + 8, 6, 2);
+  }
+
+  for (const ob of obstacles) drawObstacle(ob);
+  drawAtst();
+  drawScore(fg);
+
+  if (state === STATE.IDLE) drawIdleOverlay(fg);
+  if (state === STATE.OVER) drawGameOverOverlay(fg);
+}
+
+function drawAtst() {
+  if (atst.isDucking && !atst.isJumping) {
+    drawAtstDuck(atst.x, GROUND_Y - ATST_DUCK_H, isNight);
+  } else {
+    drawAtstStanding(atst.x, atst.y, atst.isJumping ? null : walkPhase, isNight);
+  }
+}
+
+function drawObstacle(ob) {
+  if (ob.kind === 'jedi_tall') {
+    drawJedi(ob.x, ob.y, ob.jediH, isNight);
+    drawSaber(ob.x + ob.handX, ob.y + ob.handY, ob.saberDX, ob.saberDY, isNight, ob.saberColor);
+  } else if (ob.kind === 'jedi_short') {
+    drawYoda(ob.x, ob.y, ob.jediH, isNight);
+    drawSaber(ob.x + ob.handX, ob.y + ob.handY, ob.saberDX, ob.saberDY, isNight, ob.saberColor);
+  } else if (ob.kind === 'jedi_double') {
+    drawJedi(ob.x, ob.y, ob.jediH, isNight);
+    drawSaber(ob.x + ob.handX, ob.y + ob.handY, ob.saberDX, ob.saberDY, isNight, ob.saberColor);
+    const x2 = ob.x + JEDI_W + 10;
+    drawJedi(x2, ob.y, ob.jediH, isNight);
+    drawSaber(x2 + ob.handX, ob.y + ob.handY, ob.saberDX, ob.saberDY, isNight, ob.saberColor);
+  } else if (ob.kind === 'xwing_low' || ob.kind === 'xwing_high') {
+    drawXwing(ob.x, ob.y, isNight);
+  }
+}
+
+function drawScore(fg) {
+  ctx.fillStyle = fg;
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  const s = String(Math.floor(score)).padStart(5, '0');
+  const hi = 'HI ' + String(highScore).padStart(5, '0');
+  if (scoreFlashTimer > 0 && Math.floor(scoreFlashTimer / 4) % 2 === 0) {
+    ctx.fillStyle = isNight ? '#10121a' : '#ffffff';
+    ctx.fillRect(W - 200, 8, 200, 22);
+    ctx.fillStyle = fg;
+  }
+  ctx.fillText(s, W - 16, 14);
+  ctx.fillText(hi, W - 90, 14);
+  ctx.textAlign = 'left';
+}
+
+function drawIdleOverlay(fg) {
+  ctx.fillStyle = fg;
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 18px "Courier New", monospace';
+  ctx.fillText('PRESS SPACE TO BEGIN', W / 2, 70);
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillText('A long time ago in a galaxy far, far away...', W / 2, 96);
+  ctx.textAlign = 'left';
+}
+
+function drawGameOverOverlay(fg) {
+  blinkTimer++;
+  ctx.fillStyle = fg;
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 22px "Courier New", monospace';
+  ctx.fillText('G A M E   O V E R', W / 2, 62);
+  ctx.font = '12px "Courier New", monospace';
+  if (Math.floor(blinkTimer / 30) % 2 === 0) {
+    ctx.fillText('press SPACE or tap to restart', W / 2, 90);
+  }
+  ctx.textAlign = 'left';
+}
+
+// ============================================================
+// Main loop
+// ============================================================
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+atst.y = GROUND_Y - ATST_H;
+initStars();
+loop();
+
+})();
+</script>
+</body>
+</html>
