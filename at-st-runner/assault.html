@@ -95,7 +95,7 @@ const PLAYER_Z = 4;
 const SPAWN_Z = -115;
 const DESPAWN_Z = 12;
 const GROUND_LEN = 260;
-const SKY = 0xbfd4e6;
+const SKY = 0xd6e3ef;
 
 const START_SPEED = 26;     // world units / sec toward camera
 const MAX_SPEED = 60;
@@ -106,14 +106,14 @@ const SPEED_RAMP = 0.8;     // per sec
 // ============================================================
 const app = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = false;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 26, 108);
+scene.fog = new THREE.Fog(SKY, 20, 100);
 
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 400);
 camera.position.set(0, 4.6, 9.2);
@@ -128,7 +128,7 @@ scene.add(sun);
 // ============================================================
 // Terrain
 // ============================================================
-const snowMat = new THREE.MeshStandardMaterial({ color: 0xe9f1f8, roughness: 1, metalness: 0 });
+const snowMat = new THREE.MeshStandardMaterial({ color: 0xf4f9fd, roughness: 1, metalness: 0 });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(15, GROUND_LEN), snowMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.set(0, 0, -GROUND_LEN / 2 + DESPAWN_Z);
@@ -139,8 +139,8 @@ scene.add(ground);
 const scrollers = [];
 const dashMat = new THREE.MeshStandardMaterial({ color: 0xcfe7ff, roughness: 1, emissive: 0x223344, emissiveIntensity: 0.3 });
 const tuftMat = new THREE.MeshStandardMaterial({ color: 0xf4f9ff, roughness: 1 });
-const wallMat = new THREE.MeshStandardMaterial({ color: 0xccd8e6, roughness: 1 });
-const wallMatD = new THREE.MeshStandardMaterial({ color: 0xb0bccb, roughness: 1 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xdfeaf3, roughness: 1 });
+const wallMatD = new THREE.MeshStandardMaterial({ color: 0xc6d4e0, roughness: 1 });
 function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); scene.add(mesh); scrollers.push(mesh); }
 const rand = (n) => { const r = Math.sin(n * 12.9898) * 43758.5453; return r - Math.floor(r); };
 
@@ -153,26 +153,42 @@ for (let i = 0; i < 42; i++) {
 
 // canyon walls — jagged ice ridge segments, set well back from the track and
 // overlapping in depth so they read as one continuous wall (no gaps to slip through)
-const SEG = 6;
+const SEG = 9;
 const WALL_N = Math.ceil(GROUND_LEN / SEG) + 1;
 for (const side of [-1, 1]) {
   for (let i = 0; i < WALL_N; i++) {
     const f = rand(i * 1.7 + (side > 0 ? 100 : 0));
     const h = 3.5 + f * 5.5;
-    const w = 2.6 + (i % 3) * 0.7;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, SEG + 1.4), (i % 2) ? wallMat : wallMatD);
+    const w = 2.8 + (i % 3) * 0.9;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, SEG + 2), (i % 2) ? wallMat : wallMatD);
     m.rotation.y = side * 0.16 * Math.sin(i * 1.3);
     addScroller(m, side * (7.2 + f * 0.7), h / 2 - 0.4, -i * SEG);
   }
 }
 
 // snow rocks on the shoulder between the outer lane and the wall (clear of both)
-for (let i = 0; i < 24; i++) {
+for (let i = 0; i < 22; i++) {
   const f = rand(i * 3.1 + 7);
   const s = 0.35 + f * 0.55;
   const t = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), tuftMat);
-  addScroller(t, (i % 2 ? 1 : -1) * (4.0 + f * 0.6), s * 0.45, -i * 11 - (i % 2) * 5);
+  addScroller(t, (i % 2 ? 1 : -1) * (4.0 + f * 0.6), s * 0.45, -i * 12 - (i % 2) * 5);
 }
+
+// Falling snow — a single Points cloud around the camera (one draw call, cheap)
+const SNOW_N = 650;
+const SNOW = { x: 22, y: 30, near: 14, far: -94 };
+const snowPos = new Float32Array(SNOW_N * 3);
+for (let i = 0; i < SNOW_N; i++) {
+  snowPos[i * 3] = (Math.random() * 2 - 1) * SNOW.x;
+  snowPos[i * 3 + 1] = Math.random() * SNOW.y;
+  snowPos[i * 3 + 2] = SNOW.far + Math.random() * (SNOW.near - SNOW.far);
+}
+const snowGeo = new THREE.BufferGeometry();
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snow = new THREE.Points(snowGeo, new THREE.PointsMaterial({
+  color: 0xffffff, size: 0.17, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true, fog: true,
+}));
+scene.add(snow);
 
 // ============================================================
 // AT-ST player (viewed from behind; forward = -z)
@@ -237,6 +253,8 @@ const boltGeo = new THREE.CylinderGeometry(0.09, 0.09, 1.6, 8);
 boltGeo.rotateX(Math.PI / 2);
 const boltMat = new THREE.MeshBasicMaterial({ color: 0xff3322 });
 const bolts = [];
+const boltPool = [];
+function freeBolt(m) { scene.remove(m); boltPool.push(m); }
 function fireBolt() {
   if (state !== STATE.PLAY) return;
   const now = clock.elapsedTime;
@@ -244,7 +262,8 @@ function fireBolt() {
   lastShot = now;
   const shot = { spent: false };   // one trigger press destroys at most one X-wing
   for (const sx of [-0.7, 0.7]) {
-    const m = new THREE.Mesh(boltGeo, boltMat);
+    const m = boltPool.pop() || new THREE.Mesh(boltGeo, boltMat);
+    m.visible = true;
     m.position.set(player.position.x + sx, 2.2, player.position.z - 1.6);
     m.userData.v = 150;
     m.userData.shot = shot;
@@ -268,9 +287,11 @@ function muzzleFlash() {
 const enemies = [];
 const fx = [];
 
-const XW_BODY = new THREE.MeshStandardMaterial({ color: 0xd9dee4, roughness: 0.5, metalness: 0.3 });
+const XW_BODY = new THREE.MeshStandardMaterial({ color: 0xe4e8ed, roughness: 0.45, metalness: 0.35 });
+const XW_GREY = new THREE.MeshStandardMaterial({ color: 0xb7bcc4, roughness: 0.5, metalness: 0.35 });
 const XW_RED  = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.6 });
 const XW_DARK = new THREE.MeshStandardMaterial({ color: 0x28323f, roughness: 0.5 });
+const XW_GLASS = new THREE.MeshStandardMaterial({ color: 0x4d6f93, roughness: 0.18, metalness: 0.6 });
 const ENGINE  = new THREE.MeshBasicMaterial({ color: 0xff8a44 });
 const ROBE    = new THREE.MeshStandardMaterial({ color: 0x16171c, roughness: 0.95 });
 const ROBE_HI = new THREE.MeshStandardMaterial({ color: 0x2b2d34, roughness: 0.95 });
@@ -281,42 +302,48 @@ const BLADE_G = new THREE.MeshBasicMaterial({ color: 0xbfffa0 });
 
 function buildXwing() {
   const g = new THREE.Group();
-  // fuselage + nose cone (points +z, toward the player)
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.9, 12), XW_BODY);
+  // sleek fuselage: slim mid-body + long pointed nose toward the player (+z)
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.7, 12), XW_BODY);
   fus.rotation.x = Math.PI / 2; g.add(fus);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.95, 12), XW_BODY);
-  nose.rotation.x = -Math.PI / 2; nose.position.z = 1.35; g.add(nose);
-  const nstripe = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.255, 0.22, 12), XW_RED);
-  nstripe.rotation.x = Math.PI / 2; nstripe.position.z = 0.95; g.add(nstripe);
-  // cockpit canopy (angled dark glass) + frame
-  const cock = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.34, 0.95), XW_DARK);
-  cock.position.set(0, 0.27, 0.3); cock.rotation.x = -0.12; g.add(cock);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.12, 1.0), XW_BODY);
-  frame.position.set(0, 0.14, 0.3); g.add(frame);
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 1.5), XW_GREY);
+  belly.position.y = -0.12; g.add(belly);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.25, 12), XW_BODY);
+  nose.rotation.x = -Math.PI / 2; nose.position.z = 1.45; g.add(nose);
+  const nstripe = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.225, 0.18, 12), XW_RED);
+  nstripe.rotation.x = Math.PI / 2; nstripe.position.z = 1.0; g.add(nstripe);
+  // raised wedge cockpit canopy (blue glass) + frame
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.8), XW_GLASS);
+  canopy.position.set(0, 0.26, 0.28); canopy.rotation.x = -0.16; g.add(canopy);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.92), XW_BODY);
+  frame.position.set(0, 0.12, 0.28); g.add(frame);
   // R2 astromech dome behind the cockpit
-  const r2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), XW_BODY);
-  r2.position.set(0, 0.28, -0.35); g.add(r2);
+  const r2 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), XW_GREY);
+  r2.position.set(0, 0.26, -0.38); g.add(r2);
 
-  // four S-foils splayed in an open X, each with a red tip stripe, engine, and
-  // a long laser cannon projecting forward from the wingtip
+  // four S-foils splayed in an OPEN X (hub gap), each with a leading-edge,
+  // red tip stripe, an engine with intake ring, and a forward laser cannon
   for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     const ang = Math.atan2(dy, dx);
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.5), XW_BODY);
-    wing.position.set(dx * 0.62, dy * 0.62, -0.35); wing.rotation.z = ang; g.add(wing);
-    const rs = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.5), XW_RED);
-    rs.position.set(dx * 1.02, dy * 1.02, -0.35); rs.rotation.z = ang; g.add(rs);
-    // engine nacelle at the wing root + glow at the rear
-    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.55, 10), XW_DARK);
-    eng.rotation.x = Math.PI / 2; eng.position.set(dx * 0.5, dy * 0.5, -0.7); g.add(eng);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.11, 12), ENGINE);
-    glow.position.set(dx * 0.5, dy * 0.5, -0.98); glow.rotation.y = Math.PI; g.add(glow);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 0.52), XW_BODY);
+    wing.position.set(dx * 0.82, dy * 0.82, -0.32); wing.rotation.z = ang; g.add(wing);
+    const lead = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.07, 0.12), XW_GREY);
+    lead.position.set(dx * 0.82, dy * 0.82, -0.06); lead.rotation.z = ang; g.add(lead);
+    const rs = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.52), XW_RED);
+    rs.position.set(dx * 1.18, dy * 1.18, -0.32); rs.rotation.z = ang; g.add(rs);
+    // engine nacelle at the wing root + intake ring + rear glow
+    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.6, 10), XW_GREY);
+    eng.rotation.x = Math.PI / 2; eng.position.set(dx * 0.42, dy * 0.42, -0.62); g.add(eng);
+    const intake = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 6, 12), XW_DARK);
+    intake.position.set(dx * 0.42, dy * 0.42, -0.32); g.add(intake);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), ENGINE);
+    glow.position.set(dx * 0.42, dy * 0.42, -0.93); glow.rotation.y = Math.PI; g.add(glow);
     // forward laser cannon with red emitter tip
-    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.0, 8), GUN);
-    can.rotation.x = Math.PI / 2; can.position.set(dx * 1.18, dy * 1.18, 0.45); g.add(can);
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 8), XW_RED);
-    tip.rotation.x = Math.PI / 2; tip.position.set(dx * 1.18, dy * 1.18, 1.5); g.add(tip);
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.1, 8), GUN);
+    can.rotation.x = Math.PI / 2; can.position.set(dx * 1.32, dy * 1.32, 0.5); g.add(can);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.16, 8), XW_RED);
+    tip.rotation.x = Math.PI / 2; tip.position.set(dx * 1.32, dy * 1.32, 1.6); g.add(tip);
   }
-  g.scale.setScalar(0.92);
+  g.scale.setScalar(0.9);
   return g;
 }
 
@@ -354,16 +381,19 @@ function buildYoda() {
   return g;
 }
 
+// Object pools: meshes are reused instead of rebuilt, so geometry isn't
+// allocated (and leaked) on every spawn — keeps the frame rate steady over a run.
+const enemyPool = { xwing: [], jedi: [], yoda: [] };
+function buildByType(type) { return type === 'xwing' ? buildXwing() : type === 'jedi' ? buildJedi() : buildYoda(); }
 function spawnEnemy(type, laneIdx) {
-  let mesh;
-  if (type === 'xwing') { mesh = buildXwing(); mesh.position.y = 1.8; }
-  else if (type === 'jedi') { mesh = buildJedi(); }
-  else { mesh = buildYoda(); }
-  mesh.position.x = LANE_X[laneIdx];
-  mesh.position.z = SPAWN_Z;
+  const mesh = enemyPool[type].pop() || buildByType(type);
+  mesh.visible = true;
+  mesh.rotation.set(0, 0, 0);
+  mesh.position.set(LANE_X[laneIdx], type === 'xwing' ? 1.8 : 0, SPAWN_Z);
   scene.add(mesh);
   enemies.push({ type, mesh, lane: laneIdx, alive: true });
 }
+function releaseEnemy(e) { scene.remove(e.mesh); enemyPool[e.type].push(e.mesh); }
 function pickType() { const r = Math.random(); return r < 0.45 ? 'xwing' : (r < 0.78 ? 'jedi' : 'yoda'); }
 function spawnWave() {
   const order = [0, 1, 2];
@@ -372,15 +402,20 @@ function spawnWave() {
   for (let k = 0; k < count; k++) spawnEnemy(pickType(), order[k]);
 }
 
+const fxGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+const fxPool = [];
 function burst(pos, color, n, spd, life) {
   for (let i = 0; i < n; i++) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color, transparent: true }));
+    const m = fxPool.pop() || new THREE.Mesh(fxGeo, new THREE.MeshBasicMaterial({ transparent: true }));
+    m.material.color.setHex(color); m.material.opacity = 1; m.scale.setScalar(1); m.visible = true;
     m.position.copy(pos);
-    fx.push({ mesh: m, v: new THREE.Vector3((Math.random() - 0.5) * spd, Math.random() * spd, (Math.random() - 0.5) * spd), life, max: life });
     scene.add(m);
+    fx.push({ mesh: m, v: new THREE.Vector3((Math.random() - 0.5) * spd, Math.random() * spd, (Math.random() - 0.5) * spd), life, max: life });
   }
 }
-function clearGroup(arr) { for (const e of arr) scene.remove(e.mesh); arr.length = 0; }
+function releaseFx(m) { scene.remove(m); fxPool.push(m); }
+function clearEnemies() { for (const e of enemies) releaseEnemy(e); enemies.length = 0; }
+function clearFx() { for (const p of fx) releaseFx(p.mesh); fx.length = 0; }
 
 // ============================================================
 // Game state
@@ -408,10 +443,10 @@ function startGame() {
   lane = 1; speed = START_SPEED; distance = 0; lastShot = -1;
   spawnAccum = 0; spawnGap = 18;
   player.position.x = LANE_X[1];
-  for (const b of bolts) scene.remove(b);
+  for (const b of bolts) freeBolt(b);
   bolts.length = 0;
-  clearGroup(enemies);
-  clearGroup(fx);
+  clearEnemies();
+  clearFx();
   ovStart.classList.add('hidden');
   ovOver.classList.add('hidden');
 }
@@ -474,9 +509,13 @@ const clock = new THREE.Clock();
 function update(dt) {
   const t = clock.elapsedTime;
 
-  // lane lerp
+  // smooth, frame-rate-independent glide between lanes + a bank into the motion
   const targetX = LANE_X[lane];
-  player.position.x += (targetX - player.position.x) * Math.min(1, dt * 12);
+  const prevX = player.position.x;
+  player.position.x += (targetX - prevX) * (1 - Math.exp(-13 * dt));
+  const vx = (player.position.x - prevX) / Math.max(dt, 1e-4);
+  const targetBank = THREE.MathUtils.clamp(-vx * 0.05, -0.16, 0.16);
+  player.userData.bank = (player.userData.bank || 0) + (targetBank - (player.userData.bank || 0)) * (1 - Math.exp(-10 * dt));
 
   if (state === STATE.PLAY) {
     if (speed < MAX_SPEED) speed += SPEED_RAMP * dt;
@@ -488,7 +527,7 @@ function update(dt) {
   // walker bob + leg swing
   player.position.y = Math.abs(Math.sin(bob)) * 0.12;
   player.userData.legs.children.forEach((leg) => { leg.rotation.x = Math.sin(bob + leg.userData.phase) * 0.25; });
-  player.rotation.z = Math.sin(bob) * 0.015;
+  player.rotation.z = player.userData.bank + Math.sin(bob) * 0.012;
 
   // world scroll speed (frozen on game over)
   const move = (state === STATE.OVER ? 0 : (state === STATE.READY ? START_SPEED * 0.25 : speed)) * dt;
@@ -497,6 +536,20 @@ function update(dt) {
     m.position.z += move;
     if (m.position.z > DESPAWN_Z) m.position.z -= GROUND_LEN;
   }
+
+  // falling snow: drift down + with the world, recycle around the camera
+  const sp = snowGeo.attributes.position.array;
+  for (let i = 0; i < SNOW_N; i++) {
+    sp[i * 3 + 1] -= (3 + (i % 5)) * dt;
+    sp[i * 3] += Math.sin(t * 0.6 + i) * 0.25 * dt;
+    sp[i * 3 + 2] += move * 0.55;
+    if (sp[i * 3 + 1] < 0 || sp[i * 3 + 2] > SNOW.near) {
+      sp[i * 3 + 1] = SNOW.y;
+      sp[i * 3 + 2] = SNOW.far + Math.random() * 12;
+      sp[i * 3] = (Math.random() * 2 - 1) * SNOW.x;
+    }
+  }
+  snowGeo.attributes.position.needsUpdate = true;
 
   // spawn waves
   if (state === STATE.PLAY) {
@@ -517,7 +570,7 @@ function update(dt) {
         Math.abs(e.mesh.position.x - player.position.x) < 1.35) {
       gameOver();
     }
-    if (e.mesh.position.z > DESPAWN_Z) { scene.remove(e.mesh); enemies.splice(i, 1); }
+    if (e.mesh.position.z > DESPAWN_Z) { releaseEnemy(e); enemies.splice(i, 1); }
   }
 
   // bolts: move + resolve against the NEAREST overlapping enemy. A trigger
@@ -540,7 +593,7 @@ function update(dt) {
           b.userData.shot.spent = true;
           burst(e.mesh.position, 0xff8a44, 16, 9, 0.5);
           burst(e.mesh.position, 0xffd27a, 8, 5, 0.35);
-          e.alive = false; scene.remove(e.mesh); enemies.splice(hit, 1);
+          e.alive = false; releaseEnemy(e); enemies.splice(hit, 1);
           distance += 15;
         }
         consumed = true;                        // bolt is absorbed either way
@@ -549,14 +602,14 @@ function update(dt) {
         consumed = true;                        // deflected off the saber
       }
     }
-    if (consumed || b.position.z < SPAWN_Z) { scene.remove(b); bolts.splice(i, 1); }
+    if (consumed || b.position.z < SPAWN_Z) { freeBolt(b); bolts.splice(i, 1); }
   }
 
   // effects
   for (let i = fx.length - 1; i >= 0; i--) {
     const p = fx[i];
     p.life -= dt;
-    if (p.life <= 0) { scene.remove(p.mesh); fx.splice(i, 1); continue; }
+    if (p.life <= 0) { releaseFx(p.mesh); fx.splice(i, 1); continue; }
     p.v.y -= 18 * dt;
     p.mesh.position.addScaledVector(p.v, dt);
     const k = p.life / p.max;
