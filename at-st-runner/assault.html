@@ -105,8 +105,10 @@ const SPEED_RAMP = 0.8;     // per sec
 // Renderer / scene / camera
 // ============================================================
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+const baseDPR = Math.min(window.devicePixelRatio || 1, 1);
+let resScale = 1;                       // auto-lowered on slow devices
+renderer.setPixelRatio(baseDPR * resScale);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = false;
 app.appendChild(renderer.domElement);
@@ -128,7 +130,7 @@ scene.add(sun);
 // ============================================================
 // Terrain
 // ============================================================
-const snowMat = new THREE.MeshStandardMaterial({ color: 0xf4f9fd, roughness: 1, metalness: 0 });
+const snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f9fd });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(15, GROUND_LEN), snowMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.set(0, 0, -GROUND_LEN / 2 + DESPAWN_Z);
@@ -137,23 +139,24 @@ scene.add(ground);
 // Scrolling environment — lane-edge dashes, canyon walls, and snow rocks all
 // recycle together so the whole world slides toward the camera uniformly.
 const scrollers = [];
-const dashMat = new THREE.MeshStandardMaterial({ color: 0xcfe7ff, roughness: 1, emissive: 0x223344, emissiveIntensity: 0.3 });
-const tuftMat = new THREE.MeshStandardMaterial({ color: 0xf4f9ff, roughness: 1 });
-const wallMat = new THREE.MeshStandardMaterial({ color: 0xdfeaf3, roughness: 1 });
-const wallMatD = new THREE.MeshStandardMaterial({ color: 0xc6d4e0, roughness: 1 });
+const dashMat = new THREE.MeshBasicMaterial({ color: 0xcfe7ff });
+const tuftMat = new THREE.MeshLambertMaterial({ color: 0xf4f9ff });
+const wallMat = new THREE.MeshLambertMaterial({ color: 0xdfeaf3 });
+const wallMatD = new THREE.MeshLambertMaterial({ color: 0xc6d4e0 });
 function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); scene.add(mesh); scrollers.push(mesh); }
 const rand = (n) => { const r = Math.sin(n * 12.9898) * 43758.5453; return r - Math.floor(r); };
 
-// lane-edge dashes
-for (let i = 0; i < 42; i++) {
+// lane-edge dashes (shared geometry, spaced out to keep the draw-call count low)
+const dashGeo = new THREE.BoxGeometry(0.2, 0.05, 2.6);
+for (let i = 0; i < 30; i++) {
   for (const bx of [-1.3, 1.3]) {
-    addScroller(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 2.4), dashMat), bx, 0.03, -i * 6);
+    addScroller(new THREE.Mesh(dashGeo, dashMat), bx, 0.03, -i * 8.5);
   }
 }
 
 // canyon walls — jagged ice ridge segments, set well back from the track and
 // overlapping in depth so they read as one continuous wall (no gaps to slip through)
-const SEG = 9;
+const SEG = 13;
 const WALL_N = Math.ceil(GROUND_LEN / SEG) + 1;
 for (const side of [-1, 1]) {
   for (let i = 0; i < WALL_N; i++) {
@@ -175,7 +178,7 @@ for (let i = 0; i < 22; i++) {
 }
 
 // Falling snow — a single Points cloud around the camera (one draw call, cheap)
-const SNOW_N = 650;
+const SNOW_N = 450;
 const SNOW = { x: 22, y: 30, near: 14, far: -94 };
 const snowPos = new Float32Array(SNOW_N * 3);
 for (let i = 0; i < SNOW_N; i++) {
@@ -193,10 +196,10 @@ scene.add(snow);
 // ============================================================
 // AT-ST player (viewed from behind; forward = -z)
 // ============================================================
-const METAL = new THREE.MeshStandardMaterial({ color: 0x9da1a8, roughness: 0.55, metalness: 0.35 });
-const METAL_D = new THREE.MeshStandardMaterial({ color: 0x70747c, roughness: 0.6, metalness: 0.35 });
-const DARK = new THREE.MeshStandardMaterial({ color: 0x33373d, roughness: 0.7 });
-const GUN = new THREE.MeshStandardMaterial({ color: 0x4a4e55, roughness: 0.5, metalness: 0.5 });
+const METAL = new THREE.MeshLambertMaterial({ color: 0x9da1a8 });
+const METAL_D = new THREE.MeshLambertMaterial({ color: 0x70747c });
+const DARK = new THREE.MeshLambertMaterial({ color: 0x33373d });
+const GUN = new THREE.MeshLambertMaterial({ color: 0x4a4e55 });
 
 function buildATST() {
   const g = new THREE.Group();
@@ -287,61 +290,45 @@ function muzzleFlash() {
 const enemies = [];
 const fx = [];
 
-const XW_BODY = new THREE.MeshStandardMaterial({ color: 0xe4e8ed, roughness: 0.45, metalness: 0.35 });
-const XW_GREY = new THREE.MeshStandardMaterial({ color: 0xb7bcc4, roughness: 0.5, metalness: 0.35 });
-const XW_RED  = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.6 });
-const XW_DARK = new THREE.MeshStandardMaterial({ color: 0x28323f, roughness: 0.5 });
-const XW_GLASS = new THREE.MeshStandardMaterial({ color: 0x4d6f93, roughness: 0.18, metalness: 0.6 });
+const XW_BODY = new THREE.MeshLambertMaterial({ color: 0xe4e8ed });
+const XW_GREY = new THREE.MeshLambertMaterial({ color: 0xb7bcc4 });
+const XW_RED  = new THREE.MeshLambertMaterial({ color: 0xc0392b });
+const XW_DARK = new THREE.MeshLambertMaterial({ color: 0x28323f });
+const XW_GLASS = new THREE.MeshLambertMaterial({ color: 0x4d6f93 });
 const ENGINE  = new THREE.MeshBasicMaterial({ color: 0xff8a44 });
-const ROBE    = new THREE.MeshStandardMaterial({ color: 0x16171c, roughness: 0.95 });
-const ROBE_HI = new THREE.MeshStandardMaterial({ color: 0x2b2d34, roughness: 0.95 });
-const SKIN_Y  = new THREE.MeshStandardMaterial({ color: 0x8aa15a, roughness: 0.85 });
-const TAN     = new THREE.MeshStandardMaterial({ color: 0x8a7b5c, roughness: 0.95 });
+const ROBE    = new THREE.MeshLambertMaterial({ color: 0x16171c });
+const ROBE_HI = new THREE.MeshLambertMaterial({ color: 0x2b2d34 });
+const SKIN_Y  = new THREE.MeshLambertMaterial({ color: 0x8aa15a });
+const TAN     = new THREE.MeshLambertMaterial({ color: 0x8a7b5c });
 const BLADE_B = new THREE.MeshBasicMaterial({ color: 0xbcd6ff });
 const BLADE_G = new THREE.MeshBasicMaterial({ color: 0xbfffa0 });
 
+// Shared geometries (built once) keep the per-X-wing mesh count low and cheap.
+const XW_FUS = new THREE.CylinderGeometry(0.2, 0.26, 1.7, 8); XW_FUS.rotateX(Math.PI / 2);
+const XW_NOSE = new THREE.ConeGeometry(0.2, 1.25, 8); XW_NOSE.rotateX(-Math.PI / 2);
+const XW_NSTR = new THREE.CylinderGeometry(0.205, 0.225, 0.18, 8); XW_NSTR.rotateX(Math.PI / 2);
+const XW_WING = new THREE.BoxGeometry(1.3, 0.06, 0.52);
+const XW_TIP = new THREE.BoxGeometry(0.32, 0.08, 0.52);
+const XW_CAN = new THREE.CylinderGeometry(0.04, 0.04, 2.1, 6); XW_CAN.rotateX(Math.PI / 2);
+const XW_GLOW = new THREE.CircleGeometry(0.12, 8);
 function buildXwing() {
   const g = new THREE.Group();
-  // sleek fuselage: slim mid-body + long pointed nose toward the player (+z)
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.7, 12), XW_BODY);
-  fus.rotation.x = Math.PI / 2; g.add(fus);
-  const belly = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 1.5), XW_GREY);
-  belly.position.y = -0.12; g.add(belly);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.25, 12), XW_BODY);
-  nose.rotation.x = -Math.PI / 2; nose.position.z = 1.45; g.add(nose);
-  const nstripe = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.225, 0.18, 12), XW_RED);
-  nstripe.rotation.x = Math.PI / 2; nstripe.position.z = 1.0; g.add(nstripe);
-  // raised wedge cockpit canopy (blue glass) + frame
+  const fus = new THREE.Mesh(XW_FUS, XW_BODY); g.add(fus);
+  const nose = new THREE.Mesh(XW_NOSE, XW_BODY); nose.position.z = 1.45; g.add(nose);
+  const nstripe = new THREE.Mesh(XW_NSTR, XW_RED); nstripe.position.z = 1.0; g.add(nstripe);
   const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.8), XW_GLASS);
-  canopy.position.set(0, 0.26, 0.28); canopy.rotation.x = -0.16; g.add(canopy);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.92), XW_BODY);
-  frame.position.set(0, 0.12, 0.28); g.add(frame);
-  // R2 astromech dome behind the cockpit
-  const r2 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), XW_GREY);
-  r2.position.set(0, 0.26, -0.38); g.add(r2);
-
-  // four S-foils splayed in an OPEN X (hub gap), each with a leading-edge,
-  // red tip stripe, an engine with intake ring, and a forward laser cannon
+  canopy.position.set(0, 0.25, 0.28); canopy.rotation.x = -0.16; g.add(canopy);
+  // four S-foils in an open X: wing + red tip + forward cannon + engine glow
   for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     const ang = Math.atan2(dy, dx);
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 0.52), XW_BODY);
-    wing.position.set(dx * 0.82, dy * 0.82, -0.32); wing.rotation.z = ang; g.add(wing);
-    const lead = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.07, 0.12), XW_GREY);
-    lead.position.set(dx * 0.82, dy * 0.82, -0.06); lead.rotation.z = ang; g.add(lead);
-    const rs = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.08, 0.52), XW_RED);
-    rs.position.set(dx * 1.18, dy * 1.18, -0.32); rs.rotation.z = ang; g.add(rs);
-    // engine nacelle at the wing root + intake ring + rear glow
-    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.6, 10), XW_GREY);
-    eng.rotation.x = Math.PI / 2; eng.position.set(dx * 0.42, dy * 0.42, -0.62); g.add(eng);
-    const intake = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 6, 12), XW_DARK);
-    intake.position.set(dx * 0.42, dy * 0.42, -0.32); g.add(intake);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), ENGINE);
-    glow.position.set(dx * 0.42, dy * 0.42, -0.93); glow.rotation.y = Math.PI; g.add(glow);
-    // forward laser cannon with red emitter tip
-    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.1, 8), GUN);
-    can.rotation.x = Math.PI / 2; can.position.set(dx * 1.32, dy * 1.32, 0.5); g.add(can);
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.16, 8), XW_RED);
-    tip.rotation.x = Math.PI / 2; tip.position.set(dx * 1.32, dy * 1.32, 1.6); g.add(tip);
+    const wing = new THREE.Mesh(XW_WING, XW_BODY);
+    wing.position.set(dx * 0.85, dy * 0.85, -0.3); wing.rotation.z = ang; g.add(wing);
+    const tip = new THREE.Mesh(XW_TIP, XW_RED);
+    tip.position.set(dx * 1.2, dy * 1.2, -0.3); tip.rotation.z = ang; g.add(tip);
+    const can = new THREE.Mesh(XW_CAN, GUN);
+    can.position.set(dx * 1.34, dy * 1.34, 0.5); g.add(can);
+    const glow = new THREE.Mesh(XW_GLOW, ENGINE);
+    glow.position.set(dx * 0.5, dy * 0.5, -0.92); glow.rotation.y = Math.PI; g.add(glow);
   }
   g.scale.setScalar(0.9);
   return g;
@@ -620,8 +607,20 @@ function update(dt) {
   if (muzzle && muzzle.intensity > 0) muzzle.intensity = Math.max(0, muzzle.intensity - dt * 30);
 }
 
+// adaptive resolution: if the running average FPS is low, drop the render
+// scale a notch (down to 0.6x) so weak GPUs stay smooth. Only ratchets down.
+let perfT = 0, perfN = 0;
 function frame() {
   const dt = Math.min(0.05, clock.getDelta());
+  perfT += dt; perfN++;
+  if (perfN >= 45) {
+    const fps = perfN / perfT;
+    if (fps < 50 && resScale > 0.6) {
+      resScale = Math.max(0.6, resScale - 0.15);
+      renderer.setPixelRatio(baseDPR * resScale);
+    }
+    perfT = 0; perfN = 0;
+  }
   update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
