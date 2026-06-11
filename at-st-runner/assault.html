@@ -134,41 +134,44 @@ ground.rotation.x = -Math.PI / 2;
 ground.position.set(0, 0, -GROUND_LEN / 2 + DESPAWN_Z);
 scene.add(ground);
 
-// canyon walls (icy ridges) — long boxes either side, scrolling-static
-function makeRidge(side) {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0xcdd9e6, roughness: 1 });
-  const matD = new THREE.MeshStandardMaterial({ color: 0xaab8c8, roughness: 1 });
-  for (let i = 0; i < 26; i++) {
-    const h = 2 + Math.abs(Math.sin(i * 1.7)) * 6;
-    const w = 2.4 + (i % 3);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 9), i % 2 ? mat : matD);
-    m.position.set(side * (6.4 + (i % 2) * 0.8), h / 2 - 0.3, -i * 9 - 4);
-    m.rotation.y = side * 0.2 * Math.sin(i);
-    g.add(m);
-  }
-  return g;
-}
-scene.add(makeRidge(-1));
-scene.add(makeRidge(1));
-
-// scrolling lane-edge dashes + snow tufts (motion cue, recycled)
+// Scrolling environment — lane-edge dashes, canyon walls, and snow rocks all
+// recycle together so the whole world slides toward the camera uniformly.
 const scrollers = [];
 const dashMat = new THREE.MeshStandardMaterial({ color: 0xcfe7ff, roughness: 1, emissive: 0x223344, emissiveIntensity: 0.3 });
 const tuftMat = new THREE.MeshStandardMaterial({ color: 0xf4f9ff, roughness: 1 });
-function addScroller(mesh, x, z) { mesh.position.set(x, mesh.userData.y || 0.02, z); scene.add(mesh); scrollers.push(mesh); }
-for (let i = 0; i < 40; i++) {
-  const z = -i * 6;
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xccd8e6, roughness: 1 });
+const wallMatD = new THREE.MeshStandardMaterial({ color: 0xb0bccb, roughness: 1 });
+function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); scene.add(mesh); scrollers.push(mesh); }
+const rand = (n) => { const r = Math.sin(n * 12.9898) * 43758.5453; return r - Math.floor(r); };
+
+// lane-edge dashes
+for (let i = 0; i < 42; i++) {
   for (const bx of [-1.3, 1.3]) {
-    const d = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 2.4), dashMat);
-    d.userData.y = 0.03; addScroller(d, bx, z);
+    addScroller(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 2.4), dashMat), bx, 0.03, -i * 6);
   }
 }
-for (let i = 0; i < 26; i++) {
-  const s = 0.4 + Math.random() * 0.9;
+
+// canyon walls — jagged ice ridge segments, set well back from the track and
+// overlapping in depth so they read as one continuous wall (no gaps to slip through)
+const SEG = 6;
+const WALL_N = Math.ceil(GROUND_LEN / SEG) + 1;
+for (const side of [-1, 1]) {
+  for (let i = 0; i < WALL_N; i++) {
+    const f = rand(i * 1.7 + (side > 0 ? 100 : 0));
+    const h = 3.5 + f * 5.5;
+    const w = 2.6 + (i % 3) * 0.7;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, SEG + 1.4), (i % 2) ? wallMat : wallMatD);
+    m.rotation.y = side * 0.16 * Math.sin(i * 1.3);
+    addScroller(m, side * (7.2 + f * 0.7), h / 2 - 0.4, -i * SEG);
+  }
+}
+
+// snow rocks on the shoulder between the outer lane and the wall (clear of both)
+for (let i = 0; i < 24; i++) {
+  const f = rand(i * 3.1 + 7);
+  const s = 0.35 + f * 0.55;
   const t = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), tuftMat);
-  t.userData.y = s * 0.4;
-  addScroller(t, (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 1.6), -Math.random() * GROUND_LEN);
+  addScroller(t, (i % 2 ? 1 : -1) * (4.0 + f * 0.6), s * 0.45, -i * 11 - (i % 2) * 5);
 }
 
 // ============================================================
@@ -239,10 +242,12 @@ function fireBolt() {
   const now = clock.elapsedTime;
   if (now - lastShot < 0.22) return;
   lastShot = now;
+  const shot = { spent: false };   // one trigger press destroys at most one X-wing
   for (const sx of [-0.7, 0.7]) {
     const m = new THREE.Mesh(boltGeo, boltMat);
     m.position.set(player.position.x + sx, 2.2, player.position.z - 1.6);
     m.userData.v = 150;
+    m.userData.shot = shot;
     scene.add(m); bolts.push(m);
   }
   muzzleFlash();
@@ -276,26 +281,42 @@ const BLADE_G = new THREE.MeshBasicMaterial({ color: 0xbfffa0 });
 
 function buildXwing() {
   const g = new THREE.Group();
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.34, 2.1, 10), XW_BODY);
+  // fuselage + nose cone (points +z, toward the player)
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.9, 12), XW_BODY);
   fus.rotation.x = Math.PI / 2; g.add(fus);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.27, 1.0, 10), XW_BODY);
-  nose.rotation.x = -Math.PI / 2; nose.position.z = 1.45; g.add(nose);
-  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.35, 10), XW_RED);
-  stripe.rotation.x = Math.PI / 2; stripe.position.z = 0.85; g.add(stripe);
-  const cock = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.7), XW_DARK);
-  cock.position.set(0, 0.26, 0.45); g.add(cock);
-  // S-foils: two crossed planks => X from the front
-  for (const rot of [Math.PI / 4, -Math.PI / 4]) {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.07, 0.62), XW_BODY);
-    w.position.z = -0.7; w.rotation.z = rot; g.add(w);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.95, 12), XW_BODY);
+  nose.rotation.x = -Math.PI / 2; nose.position.z = 1.35; g.add(nose);
+  const nstripe = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.255, 0.22, 12), XW_RED);
+  nstripe.rotation.x = Math.PI / 2; nstripe.position.z = 0.95; g.add(nstripe);
+  // cockpit canopy (angled dark glass) + frame
+  const cock = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.34, 0.95), XW_DARK);
+  cock.position.set(0, 0.27, 0.3); cock.rotation.x = -0.12; g.add(cock);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.12, 1.0), XW_BODY);
+  frame.position.set(0, 0.14, 0.3); g.add(frame);
+  // R2 astromech dome behind the cockpit
+  const r2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), XW_BODY);
+  r2.position.set(0, 0.28, -0.35); g.add(r2);
+
+  // four S-foils splayed in an open X, each with a red tip stripe, engine, and
+  // a long laser cannon projecting forward from the wingtip
+  for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    const ang = Math.atan2(dy, dx);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.5), XW_BODY);
+    wing.position.set(dx * 0.62, dy * 0.62, -0.35); wing.rotation.z = ang; g.add(wing);
+    const rs = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.09, 0.5), XW_RED);
+    rs.position.set(dx * 1.02, dy * 1.02, -0.35); rs.rotation.z = ang; g.add(rs);
+    // engine nacelle at the wing root + glow at the rear
+    const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.55, 10), XW_DARK);
+    eng.rotation.x = Math.PI / 2; eng.position.set(dx * 0.5, dy * 0.5, -0.7); g.add(eng);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.11, 12), ENGINE);
+    glow.position.set(dx * 0.5, dy * 0.5, -0.98); glow.rotation.y = Math.PI; g.add(glow);
+    // forward laser cannon with red emitter tip
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.0, 8), GUN);
+    can.rotation.x = Math.PI / 2; can.position.set(dx * 1.18, dy * 1.18, 0.45); g.add(can);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 8), XW_RED);
+    tip.rotation.x = Math.PI / 2; tip.position.set(dx * 1.18, dy * 1.18, 1.5); g.add(tip);
   }
-  // wingtip cannons + engine glow
-  for (const [sx, sy] of [[0.72, 0.72], [-0.72, 0.72], [0.72, -0.72], [-0.72, -0.72]]) {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), GUN);
-    c.rotation.x = Math.PI / 2; c.position.set(sx, sy, -0.1); g.add(c);
-    const e = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.28, 8), ENGINE);
-    e.rotation.x = Math.PI / 2; e.position.set(sx * 0.62, sy * 0.62, -1.15); g.add(e);
-  }
+  g.scale.setScalar(0.92);
   return g;
 }
 
@@ -499,24 +520,33 @@ function update(dt) {
     if (e.mesh.position.z > DESPAWN_Z) { scene.remove(e.mesh); enemies.splice(i, 1); }
   }
 
-  // bolts: move + hit enemies (destroy X-wings, deflect off sabers)
+  // bolts: move + resolve against the NEAREST overlapping enemy. A trigger
+  // press destroys at most one X-wing (shared shot token); sabers deflect.
   for (let i = bolts.length - 1; i >= 0; i--) {
     const b = bolts[i];
     b.position.z -= b.userData.v * dt;
-    let consumed = false;
-    for (let j = enemies.length - 1; j >= 0; j--) {
+    let hit = -1, hitZ = -Infinity;
+    for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j];
       if (!e.alive) continue;
-      if (Math.abs(b.position.z - e.mesh.position.z) < 1.5 && Math.abs(b.position.x - e.mesh.position.x) < 1.0) {
-        if (e.type === 'xwing') {
+      if (Math.abs(b.position.z - e.mesh.position.z) < 1.6 && Math.abs(b.position.x - e.mesh.position.x) < 1.0
+          && e.mesh.position.z > hitZ) { hitZ = e.mesh.position.z; hit = j; }
+    }
+    let consumed = false;
+    if (hit >= 0) {
+      const e = enemies[hit];
+      if (e.type === 'xwing') {
+        if (!b.userData.shot.spent) {          // only the first X-wing dies per shot
+          b.userData.shot.spent = true;
           burst(e.mesh.position, 0xff8a44, 16, 9, 0.5);
           burst(e.mesh.position, 0xffd27a, 8, 5, 0.35);
-          e.alive = false; scene.remove(e.mesh); enemies.splice(j, 1);
+          e.alive = false; scene.remove(e.mesh); enemies.splice(hit, 1);
           distance += 15;
-        } else {
-          burst(b.position, e.type === 'yoda' ? 0xbfffa0 : 0xbcd6ff, 6, 5, 0.25);
         }
-        consumed = true; break;
+        consumed = true;                        // bolt is absorbed either way
+      } else {
+        burst(b.position, e.type === 'yoda' ? 0xbfffa0 : 0xbcd6ff, 6, 5, 0.25);
+        consumed = true;                        // deflected off the saber
       }
     }
     if (consumed || b.position.z < SPAWN_Z) { scene.remove(b); bolts.splice(i, 1); }
