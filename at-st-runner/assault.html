@@ -141,8 +141,6 @@ scene.add(ground);
 const scrollers = [];
 const dashMat = new THREE.MeshBasicMaterial({ color: 0xcfe7ff });
 const tuftMat = new THREE.MeshLambertMaterial({ color: 0xf4f9ff });
-const wallMat = new THREE.MeshLambertMaterial({ color: 0xdfeaf3 });
-const wallMatD = new THREE.MeshLambertMaterial({ color: 0xc6d4e0 });
 function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); scene.add(mesh); scrollers.push(mesh); }
 const rand = (n) => { const r = Math.sin(n * 12.9898) * 43758.5453; return r - Math.floor(r); };
 
@@ -154,20 +152,50 @@ for (let i = 0; i < 30; i++) {
   }
 }
 
-// canyon walls — jagged ice ridge segments, set well back from the track and
-// overlapping in depth so they read as one continuous wall (no gaps to slip through)
-const SEG = 13;
-const WALL_N = Math.ceil(GROUND_LEN / SEG) + 1;
-for (const side of [-1, 1]) {
-  for (let i = 0; i < WALL_N; i++) {
-    const f = rand(i * 1.7 + (side > 0 ? 100 : 0));
-    const h = 3.5 + f * 5.5;
-    const w = 2.8 + (i % 3) * 0.9;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, SEG + 2), (i % 2) ? wallMat : wallMatD);
-    m.rotation.y = side * 0.16 * Math.sin(i * 1.3);
-    addScroller(m, side * (7.2 + f * 0.7), h / 2 - 0.4, -i * SEG);
+// Canyon walls — one continuous low-poly ridge mesh per side (a single draw
+// call each). The silhouette is periodic with period RIDGE_P, so the mesh can
+// scroll forever and wrap seamlessly. Vertex colors + flat shading give the
+// faceted, snow-capped ice look; fog swallows the far end.
+const RIDGE_P = 64;                    // tile period (world units)
+const RIDGE_ROWS = 20;                 // cross-section rows per period
+function buildRidgeGeo(side) {
+  const DZ = RIDGE_P / RIDGE_ROWS;
+  const Z0 = 18, Z1 = -250;
+  const N = Math.ceil((Z0 - Z1) / DZ);
+  const pos = [], col = [], idx = [];
+  const C = (r, g, b, m) => col.push(Math.min(1, r * m), Math.min(1, g * m), Math.min(1, b * m));
+  for (let i = 0; i <= N; i++) {
+    const z = Z0 - i * DZ;
+    const k = i % RIDGE_ROWS;          // periodic param -> seamless tiling
+    const f1 = rand(k * 7.13 + 11), f2 = rand(k * 3.77 + 5);
+    const w1 = Math.sin(k / RIDGE_ROWS * Math.PI * 2);
+    const w2 = Math.sin(k / RIDGE_ROWS * Math.PI * 6 + 1.7);
+    const w3 = Math.sin(k / RIDGE_ROWS * Math.PI * 10 + 0.6);
+    const bankH = 1.1 + 0.45 * w2 + f1 * 0.8;            // low snow bank
+    const peakH = 5.4 + 2.1 * w1 + 1.3 * w3 + f2 * 2.1;  // jagged main crest
+    const crestX = 8.1 + f1 * 1.5 + 0.7 * w2;            // crest meanders
+    const m = 0.95 + f1 * 0.09;                           // per-row tint variation
+    pos.push(side * 5.7, -0.6, z);                 C(0.62, 0.70, 0.79, m);  // buried foot
+    pos.push(side * (6.9 + 0.5 * w3), bankH, z);   C(0.84, 0.90, 0.95, m);  // bank crest
+    pos.push(side * crestX, peakH, z);             C(0.88 + peakH * 0.011, 0.91 + peakH * 0.008, 0.97, m); // snowy peak
+    pos.push(side * 12.6, peakH * 0.45 + 0.7, z);  C(0.72, 0.79, 0.87, m);  // back slope
   }
+  for (let i = 0; i < N; i++) {
+    const a = i * 4;
+    for (let j = 0; j < 3; j++) {
+      idx.push(a + j, a + j + 1, a + 4 + j, a + j + 1, a + 5 + j, a + 4 + j);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
+const ridgeMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+const ridges = [new THREE.Mesh(buildRidgeGeo(-1), ridgeMat), new THREE.Mesh(buildRidgeGeo(1), ridgeMat)];
+for (const r of ridges) scene.add(r);
 
 // snow rocks on the shoulder between the outer lane and the wall (clear of both)
 for (let i = 0; i < 22; i++) {
@@ -522,6 +550,12 @@ function update(dt) {
   for (const m of scrollers) {
     m.position.z += move;
     if (m.position.z > DESPAWN_Z) m.position.z -= GROUND_LEN;
+  }
+
+  // canyon ridges scroll with the world; the profile tiles every RIDGE_P units
+  for (const w of ridges) {
+    w.position.z += move;
+    if (w.position.z > RIDGE_P) w.position.z -= RIDGE_P;
   }
 
   // falling snow: drift down + with the world, recycle around the camera
