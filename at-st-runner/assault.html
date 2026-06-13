@@ -330,6 +330,12 @@ const SKIN_Y  = new THREE.MeshLambertMaterial({ color: 0x8aa15a });
 const TAN     = new THREE.MeshLambertMaterial({ color: 0x8a7b5c });
 const BLADE_B = new THREE.MeshBasicMaterial({ color: 0xbcd6ff });
 const BLADE_G = new THREE.MeshBasicMaterial({ color: 0xbfffa0 });
+const SKIN_H  = new THREE.MeshLambertMaterial({ color: 0xc9a47a });  // Jedi face
+const TUNIC   = new THREE.MeshLambertMaterial({ color: 0x4a3a29 });  // Jedi under-tunic
+const GLOVE   = new THREE.MeshLambertMaterial({ color: 0x2a2118 });  // gloves / boots / belt
+const TAN_D   = new THREE.MeshLambertMaterial({ color: 0x5f523c });  // Yoda darker robe
+const SKIN_YD = new THREE.MeshLambertMaterial({ color: 0x6d8348 });  // Yoda skin shadow
+const HAIR    = new THREE.MeshLambertMaterial({ color: 0xe6e1d4 });  // Yoda wispy hair
 
 // Shared geometries (built once) keep the per-X-wing mesh count low and cheap.
 const XW_FUS = new THREE.CylinderGeometry(0.2, 0.26, 1.7, 8); XW_FUS.rotateX(Math.PI / 2);
@@ -364,35 +370,91 @@ function buildXwing() {
 
 function buildJedi() {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.62, 2.0, 8), ROBE);
-  body.position.y = 1.0; g.add(body);
-  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.4, 0.5, 8), ROBE_HI);
-  sh.position.y = 1.85; g.add(sh);
-  const hood = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.62, 8), ROBE_HI);
-  hood.position.y = 2.3; g.add(hood);
-  const face = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.12), DARK);
-  face.position.set(0, 2.12, 0.28); g.add(face);
-  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.32, 6), GUN);
-  hilt.position.set(0.42, 1.5, 0.42); g.add(hilt);
-  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.7, 8), BLADE_B);
-  blade.position.set(0.42, 2.55, 0.42); g.add(blade);
+  // outer robe (wide at the hem) + a lighter under-tunic panel so it isn't a black blob
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.66, 1.7, 8), ROBE);
+  body.position.y = 0.85; g.add(body);
+  const tunic = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.0, 0.08), TUNIC);
+  tunic.position.set(0, 1.05, 0.33); g.add(tunic);
+  // belt + buckle
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.52, 0.16, 8), GLOVE);
+  belt.position.y = 0.98; g.add(belt);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.06), GUN);
+  buckle.position.set(0, 0.98, 0.47); g.add(buckle);
+  // cloak draping behind the shoulders
+  const cape = new THREE.Mesh(new THREE.BoxGeometry(0.74, 1.7, 0.07), ROBE);
+  cape.position.set(0, 0.95, -0.34); cape.rotation.x = 0.05; g.add(cape);
+  // shoulders / cowl
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.4, 0.5, 8), ROBE_HI);
+  sh.position.y = 1.72; g.add(sh);
+  // hood + shadowed face + eyes
+  const hood = new THREE.Mesh(new THREE.ConeGeometry(0.37, 0.66, 8), ROBE_HI);
+  hood.position.y = 2.18; g.add(hood);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 7), SKIN_H);
+  face.position.set(0, 2.02, 0.14); g.add(face);
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.04), DARK);
+    eye.position.set(sx * 0.06, 2.06, 0.29); g.add(eye);
+  }
+  // arms reaching to a two-handed grip in front + gloved hands
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.66, 6), ROBE);
+    arm.position.set(sx * 0.24, 1.5, 0.3); arm.rotation.x = -0.95; arm.rotation.z = sx * 0.22; g.add(arm);
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.1), GLOVE);
+    hand.position.set(sx * 0.09, 1.33, 0.52); g.add(hand);
+  }
+  // lightsaber — two-handed, blade up and slightly forward
+  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 6), GUN);
+  hilt.position.set(0, 1.4, 0.55); g.add(hilt);
+  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 1.7, 7), BLADE_B);
+  blade.position.set(0, 2.45, 0.57); g.add(blade);
+  // boots peeking from the hem
+  for (const sx of [-1, 1]) {
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.34), GLOVE);
+    boot.position.set(sx * 0.16, 0.1, 0.06); g.add(boot);
+  }
   return g;
 }
 
 function buildYoda() {
   const g = new THREE.Group();
-  const robe = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.05, 9), TAN);
-  robe.position.y = 0.52; g.add(robe);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), SKIN_Y);
-  head.position.y = 1.2; g.add(head);
-  for (const s of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.55, 6), SKIN_Y);
-    ear.position.set(s * 0.36, 1.28, -0.05); ear.rotation.z = s * 1.25; g.add(ear);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), DARK);
-    eye.position.set(s * 0.13, 1.2, 0.3); g.add(eye);
+  // layered brown robe + collar
+  const robe = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.0, 9), TAN);
+  robe.position.y = 0.5; g.add(robe);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.44, 0.34, 9), TAN_D);
+  collar.position.y = 0.92; g.add(collar);
+  for (const sx of [-1, 1]) {   // little green feet
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.3), SKIN_YD);
+    foot.position.set(sx * 0.17, 0.06, 0.1); g.add(foot);
   }
-  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.15, 8), BLADE_G);
-  blade.position.set(0.34, 1.05, 0.32); g.add(blade);
+  // big head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.37, 10, 8), SKIN_Y);
+  head.position.y = 1.2; g.add(head);
+  // long ears + wispy white hair tufts
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.62, 6), SKIN_Y);
+    ear.position.set(sx * 0.42, 1.24, -0.04); ear.rotation.z = sx * 1.4; ear.rotation.x = -0.2; g.add(ear);
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.16), HAIR);
+    hair.position.set(sx * 0.2, 1.45, -0.02); g.add(hair);
+  }
+  // eyes + brows
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085, 7, 6), DARK);
+    eye.position.set(sx * 0.14, 1.18, 0.3); g.add(eye);
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.045, 0.05), SKIN_YD);
+    brow.position.set(sx * 0.14, 1.31, 0.31); brow.rotation.z = -sx * 0.32; g.add(brow);
+  }
+  // nose + mouth
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 5), SKIN_Y);
+  nose.position.set(0, 1.08, 0.36); g.add(nose);
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.04), DARK);
+  mouth.position.set(0, 0.98, 0.34); g.add(mouth);
+  // three-finger hand gripping the saber (held up to one side)
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), SKIN_Y);
+  hand.position.set(0.2, 0.96, 0.42); g.add(hand);
+  const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.26, 6), GUN);
+  hilt.position.set(0.2, 1.06, 0.44); g.add(hilt);
+  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 1.15, 7), BLADE_G);
+  blade.position.set(0.2, 1.73, 0.46); g.add(blade);
   return g;
 }
 
