@@ -516,6 +516,13 @@ bind('tright', () => moveLane(1));
 bind('tfire', () => primaryAction());
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('touch').classList.add('show');
 
+// The start / game-over overlays sit above the canvas, so a tap lands on them
+// (not the canvas). Make tapping/clicking an overlay begin the run on mobile.
+[ovStart, ovOver].forEach((ov) => {
+  ov.addEventListener('touchstart', (e) => { e.preventDefault(); primaryAction(); }, { passive: false });
+  ov.addEventListener('click', () => primaryAction());
+});
+
 // ============================================================
 // Update + render
 // ============================================================
