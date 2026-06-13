@@ -101,6 +101,15 @@ const START_SPEED = 26;     // world units / sec toward camera
 const MAX_SPEED = 60;
 const SPEED_RAMP = 0.8;     // per sec
 
+// Winding-path illusion: a purely visual horizontal bend applied per-depth at
+// render time. All collision/gameplay stays in straight "logical" lane x, so
+// nothing about play changes — only where things are drawn. bendPhase scrolls
+// with the world so the canyon appears to wind toward you.
+const BEND_AMP = 3.2, BEND_FREQ = 0.05;
+let bendPhase = 0;
+const bendX = (z) => BEND_AMP * Math.sin((PLAYER_Z - z) * BEND_FREQ + bendPhase);
+let playerLaneX = LANE_X[1];   // logical lane position (collision uses this)
+
 // ============================================================
 // Renderer / scene / camera
 // ============================================================
@@ -139,7 +148,7 @@ let nightLevel = 0;
 // Terrain
 // ============================================================
 const snowMat = new THREE.MeshLambertMaterial({ color: 0xf4f9fd });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(15, GROUND_LEN), snowMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, GROUND_LEN), snowMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.set(0, 0, -GROUND_LEN / 2 + DESPAWN_Z);
 scene.add(ground);
@@ -149,7 +158,7 @@ scene.add(ground);
 const scrollers = [];
 const dashMat = new THREE.MeshBasicMaterial({ color: 0xcfe7ff });
 const tuftMat = new THREE.MeshLambertMaterial({ color: 0xf4f9ff });
-function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); scene.add(mesh); scrollers.push(mesh); }
+function addScroller(mesh, x, y, z) { mesh.position.set(x, y, z); mesh.userData.baseX = x; scene.add(mesh); scrollers.push(mesh); }
 const rand = (n) => { const r = Math.sin(n * 12.9898) * 43758.5453; return r - Math.floor(r); };
 
 // lane-edge dashes (shared geometry, spaced out to keep the draw-call count low)
@@ -203,7 +212,12 @@ function buildRidgeGeo(side) {
 }
 const ridgeMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
 const ridges = [new THREE.Mesh(buildRidgeGeo(-1), ridgeMat), new THREE.Mesh(buildRidgeGeo(1), ridgeMat)];
-for (const r of ridges) scene.add(r);
+for (const r of ridges) {
+  const p = r.geometry.attributes.position;
+  r.userData.baseX = Float32Array.from({ length: p.count }, (_, i) => p.getX(i));
+  r.userData.baseZ = Float32Array.from({ length: p.count }, (_, i) => p.getZ(i));
+  scene.add(r);
+}
 
 // snow rocks on the shoulder between the outer lane and the wall (clear of both)
 for (let i = 0; i < 22; i++) {
@@ -332,8 +346,10 @@ function fireBolt() {
   for (const sx of [-0.7, 0.7]) {
     const m = boltPool.pop() || new THREE.Mesh(boltGeo, boltMat);
     m.visible = true;
-    m.position.set(player.position.x + sx, 2.2, player.position.z - 1.6);
+    const lx = playerLaneX + sx;                       // logical x (for collision)
+    m.position.set(lx + bendX(player.position.z - 1.6), 2.2, player.position.z - 1.6);
     m.userData.v = 150;
+    m.userData.lx = lx;
     m.userData.shot = shot;
     scene.add(m); bolts.push(m);
   }
@@ -511,7 +527,7 @@ function spawnEnemy(type, laneIdx) {
   mesh.rotation.set(0, 0, 0);
   mesh.position.set(LANE_X[laneIdx], type === 'xwing' ? 1.8 : 0, SPAWN_Z);
   scene.add(mesh);
-  enemies.push({ type, mesh, lane: laneIdx, alive: true });
+  enemies.push({ type, mesh, lane: laneIdx, alive: true, lx: LANE_X[laneIdx] });
 }
 function releaseEnemy(e) { scene.remove(e.mesh); enemyPool[e.type].push(e.mesh); }
 function pickType() { const r = Math.random(); return r < 0.45 ? 'xwing' : (r < 0.78 ? 'jedi' : 'yoda'); }
@@ -560,8 +576,9 @@ elHi.textContent = highScore;
 
 function startGame() {
   state = STATE.PLAY;
-  lane = 1; speed = START_SPEED; distance = 0; lastShot = -1; nightLevel = 0;
+  lane = 1; speed = START_SPEED; distance = 0; lastShot = -1; nightLevel = 0; bendPhase = 0;
   spawnAccum = 0; spawnGap = 18;
+  playerLaneX = LANE_X[1];
   player.position.x = LANE_X[1];
   for (const b of bolts) freeBolt(b);
   bolts.length = 0;
@@ -637,10 +654,11 @@ function update(dt) {
   const t = clock.elapsedTime;
 
   // smooth, frame-rate-independent glide between lanes + a bank into the motion
+  // (playerLaneX is the LOGICAL position used by collision; the bend is visual)
   const targetX = LANE_X[lane];
-  const prevX = player.position.x;
-  player.position.x += (targetX - prevX) * (1 - Math.exp(-13 * dt));
-  const vx = (player.position.x - prevX) / Math.max(dt, 1e-4);
+  const prevX = playerLaneX;
+  playerLaneX += (targetX - prevX) * (1 - Math.exp(-13 * dt));
+  const vx = (playerLaneX - prevX) / Math.max(dt, 1e-4);
   const targetBank = THREE.MathUtils.clamp(-vx * 0.05, -0.16, 0.16);
   player.userData.bank = (player.userData.bank || 0) + (targetBank - (player.userData.bank || 0)) * (1 - Math.exp(-10 * dt));
 
@@ -650,6 +668,13 @@ function update(dt) {
     elScore.textContent = Math.floor(distance);
   }
   bob += dt * (state === STATE.OVER ? 0 : (state === STATE.PLAY ? speed : START_SPEED)) * 0.5;
+
+  // world scroll speed (frozen on game over) + winding bend that scrolls with it
+  const move = (state === STATE.OVER ? 0 : (state === STATE.READY ? START_SPEED * 0.25 : speed)) * dt;
+  bendPhase += move * BEND_FREQ;
+  const camX = bendX(PLAYER_Z);             // camera follows the path so the AT-ST stays framed
+  camera.position.x = camX;
+  camera.lookAt(camX, 1.4, -10);
 
   // day <-> night every 300 distance (night on odd blocks), smooth crossfade
   const nightTarget = (Math.floor(distance / 300) % 2 === 1) ? 1 : 0;
@@ -669,23 +694,26 @@ function update(dt) {
   XW_RED.emissiveIntensity = nightLevel * 0.95;
   XW_GLASS.emissiveIntensity = nightLevel * 0.95;
 
-  // walker bob + leg swing
+  // walker bob + leg swing (visual x rides the bend; logical x is playerLaneX)
+  player.position.x = playerLaneX + bendX(PLAYER_Z);
   player.position.y = Math.abs(Math.sin(bob)) * 0.12;
   player.userData.legs.children.forEach((leg) => { leg.rotation.x = Math.sin(bob + leg.userData.phase) * 0.25; });
   player.rotation.z = player.userData.bank + Math.sin(bob) * 0.012;
 
-  // world scroll speed (frozen on game over)
-  const move = (state === STATE.OVER ? 0 : (state === STATE.READY ? START_SPEED * 0.25 : speed)) * dt;
-
   for (const m of scrollers) {
     m.position.z += move;
     if (m.position.z > DESPAWN_Z) m.position.z -= GROUND_LEN;
+    m.position.x = m.userData.baseX + bendX(m.position.z);
   }
 
-  // canyon ridges scroll with the world; the profile tiles every RIDGE_P units
+  // canyon ridges scroll with the world; the profile tiles every RIDGE_P units.
+  // Bend each ridge's vertices in x by the per-depth offset so the horizon winds.
   for (const w of ridges) {
     w.position.z += move;
     if (w.position.z > RIDGE_P) w.position.z -= RIDGE_P;
+    const pos = w.geometry.attributes.position, bx = w.userData.baseX, bz = w.userData.baseZ;
+    for (let i = 0; i < bx.length; i++) pos.setX(i, bx[i] + bendX(bz[i] + w.position.z));
+    pos.needsUpdate = true;
   }
 
   // falling snow: drift down + with the world, recycle around the camera
@@ -712,13 +740,14 @@ function update(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     e.mesh.position.z += move;
+    e.mesh.position.x = e.lx + bendX(e.mesh.position.z);   // visual bend; collision uses e.lx
     if (e.type === 'xwing') {
       e.mesh.position.y = 1.8 + Math.sin((t + i) * 4) * 0.1;
       e.mesh.rotation.z = Math.sin((t + i) * 2.5) * 0.18;
     }
     if (state === STATE.PLAY && e.alive &&
         Math.abs(e.mesh.position.z - PLAYER_Z) < 1.5 &&
-        Math.abs(e.mesh.position.x - player.position.x) < 1.35) {
+        Math.abs(e.lx - playerLaneX) < 1.35) {
       gameOver();
     }
     if (e.mesh.position.z > DESPAWN_Z) { releaseEnemy(e); enemies.splice(i, 1); }
@@ -729,11 +758,12 @@ function update(dt) {
   for (let i = bolts.length - 1; i >= 0; i--) {
     const b = bolts[i];
     b.position.z -= b.userData.v * dt;
+    b.position.x = b.userData.lx + bendX(b.position.z);   // visual bend; collision uses lx
     let hit = -1, hitZ = -Infinity;
     for (let j = 0; j < enemies.length; j++) {
       const e = enemies[j];
       if (!e.alive) continue;
-      if (Math.abs(b.position.z - e.mesh.position.z) < 1.6 && Math.abs(b.position.x - e.mesh.position.x) < 1.0
+      if (Math.abs(b.position.z - e.mesh.position.z) < 1.6 && Math.abs(b.userData.lx - e.lx) < 1.0
           && e.mesh.position.z > hitZ) { hitZ = e.mesh.position.z; hit = j; }
     }
     let consumed = false;
