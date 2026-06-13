@@ -355,12 +355,15 @@ function muzzleFlash() {
 const enemies = [];
 const fx = [];
 
-const XW_BODY = new THREE.MeshLambertMaterial({ color: 0xe4e8ed });
-const XW_GREY = new THREE.MeshLambertMaterial({ color: 0xb7bcc4 });
-const XW_RED  = new THREE.MeshLambertMaterial({ color: 0xc0392b });
+// X-wing parts carry an emissive that's dark by day and ramps up at night
+// (driven by nightLevel) so the fighter stays clearly visible against the navy sky.
+const XW_BODY = new THREE.MeshLambertMaterial({ color: 0xe4e8ed, emissive: 0x8fa6c4, emissiveIntensity: 0 });
+const XW_GREY = new THREE.MeshLambertMaterial({ color: 0xb7bcc4, emissive: 0x8190a6, emissiveIntensity: 0 });
+const XW_RED  = new THREE.MeshLambertMaterial({ color: 0xc0392b, emissive: 0xff2a1a, emissiveIntensity: 0 });
 const XW_DARK = new THREE.MeshLambertMaterial({ color: 0x28323f });
-const XW_GLASS = new THREE.MeshLambertMaterial({ color: 0x4d6f93 });
-const ENGINE  = new THREE.MeshBasicMaterial({ color: 0xff8a44 });
+const XW_GLASS = new THREE.MeshLambertMaterial({ color: 0x4d6f93, emissive: 0x4fa6ff, emissiveIntensity: 0 });
+const ENGINE  = new THREE.MeshBasicMaterial({ color: 0xffb060 });
+const ENGINE_HALO = new THREE.MeshBasicMaterial({ color: 0xff7a3c, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
 const ROBE    = new THREE.MeshLambertMaterial({ color: 0x16171c });
 const ROBE_HI = new THREE.MeshLambertMaterial({ color: 0x2b2d34 });
 const SKIN_Y  = new THREE.MeshLambertMaterial({ color: 0x8aa15a });
@@ -381,7 +384,8 @@ const XW_NSTR = new THREE.CylinderGeometry(0.205, 0.225, 0.18, 8); XW_NSTR.rotat
 const XW_WING = new THREE.BoxGeometry(1.3, 0.06, 0.52);
 const XW_TIP = new THREE.BoxGeometry(0.32, 0.08, 0.52);
 const XW_CAN = new THREE.CylinderGeometry(0.04, 0.04, 2.1, 6); XW_CAN.rotateX(Math.PI / 2);
-const XW_GLOW = new THREE.CircleGeometry(0.12, 8);
+const XW_GLOW = new THREE.CircleGeometry(0.15, 10);
+const XW_HALO = new THREE.CircleGeometry(0.38, 12);
 function buildXwing() {
   const g = new THREE.Group();
   const fus = new THREE.Mesh(XW_FUS, XW_BODY); g.add(fus);
@@ -400,6 +404,8 @@ function buildXwing() {
     can.position.set(dx * 1.34, dy * 1.34, 0.5); g.add(can);
     const glow = new THREE.Mesh(XW_GLOW, ENGINE);
     glow.position.set(dx * 0.5, dy * 0.5, -0.92); glow.rotation.y = Math.PI; g.add(glow);
+    const halo = new THREE.Mesh(XW_HALO, ENGINE_HALO);
+    halo.position.set(dx * 0.5, dy * 0.5, -0.95); halo.rotation.y = Math.PI; g.add(halo);
   }
   g.scale.setScalar(0.9);
   return g;
@@ -658,6 +664,10 @@ function update(dt) {
   stars.visible = nightLevel > 0.02; stars.material.opacity = nightLevel;
   moon.visible = nightLevel > 0.02;
   for (const m of moonMats) m.opacity = Math.min(1, nightLevel * 1.25);
+  // X-wings self-illuminate at night so they read against the dark sky
+  XW_BODY.emissiveIntensity = nightLevel * 0.5;
+  XW_RED.emissiveIntensity = nightLevel * 0.95;
+  XW_GLASS.emissiveIntensity = nightLevel * 0.95;
 
   // walker bob + leg swing
   player.position.y = Math.abs(Math.sin(bob)) * 0.12;
