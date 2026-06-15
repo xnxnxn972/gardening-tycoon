@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Treasure Traitors: Pirate Party</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+  { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+  </script>
+</head>
+<body>
+  <div class="center">
+    <div style="font-size:72px">🏴‍☠️</div>
+    <h1 class="title">Treasure Traitors</h1>
+    <div class="tagline">Sail. Steal. Betray your friends.</div>
+
+    <div class="card" style="display:flex;flex-direction:column;gap:14px;max-width:420px;width:100%">
+      <button id="createBtn">🗺️ Start a New Game (Main Screen)</button>
+      <div class="muted">Open this on a TV, laptop, or iPad.</div>
+      <hr style="width:100%;opacity:.2" />
+      <div class="muted">Joining on your phone? Scan the QR on the main screen, or enter the room code:</div>
+      <input id="codeInput" maxlength="4" placeholder="CODE" />
+      <button class="secondary" id="joinBtn">Join with Code</button>
+      <div id="err" class="banner"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { CLOUD_ENABLED, createRoom } from './js/net.js';
+    import { makeRoomCode, lobbyState } from './js/engine.js';
+
+    const err = document.getElementById('err');
+    if (!CLOUD_ENABLED) err.textContent = 'Cloud is not configured — check js/net.js.';
+
+    document.getElementById('createBtn').onclick = async () => {
+      err.textContent = '';
+      try {
+        const code = makeRoomCode();
+        await createRoom(code, lobbyState(code));
+        location.href = `host.html?room=${code}`;
+      } catch (e) {
+        console.error(e);
+        err.textContent = 'Could not reach the sea (Supabase). Try again.';
+      }
+    };
+
+    document.getElementById('joinBtn').onclick = () => {
+      const code = document.getElementById('codeInput').value.trim().toUpperCase();
+      if (code.length >= 3) location.href = `join.html?room=${code}`;
+    };
+    document.getElementById('codeInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('joinBtn').click();
+    });
+  </script>
+</body>
+</html>
