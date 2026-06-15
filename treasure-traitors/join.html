@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Join — Treasure Traitors</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+  { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+  </script>
+</head>
+<body>
+  <div class="center">
+    <div style="font-size:60px">🏴‍☠️</div>
+    <h1 class="title">Join the Crew</h1>
+    <div class="tagline">Room <span id="codeLabel"></span></div>
+
+    <div class="card" style="max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px">
+      <input id="nameInput" maxlength="12" placeholder="YER NAME" autocomplete="off" />
+      <div class="muted">Pick yer flag color</div>
+      <div id="colors" class="player-chips"></div>
+      <button id="joinBtn">🚢 Set Sail!</button>
+      <div id="err" class="banner hint"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as net from './js/net.js';
+    import { COLORS } from './js/engine.js';
+
+    const code = net.roomFromUrl();
+    document.getElementById('codeLabel').textContent = code;
+    const colorsEl = document.getElementById('colors');
+    const err = (m) => { document.getElementById('err').textContent = m || ''; };
+    let chosen = -1;
+    let takenIdx = new Set();
+
+    async function refreshColors() {
+      try {
+        const roster = await net.readRoster(code);
+        takenIdx = new Set(roster.map(r => r.color_index));
+      } catch (e) { console.warn(e); }
+      if (chosen < 0 || takenIdx.has(chosen)) {
+        chosen = COLORS.findIndex((_, i) => !takenIdx.has(i));
+      }
+      colorsEl.innerHTML = '';
+      COLORS.forEach((c, i) => {
+        const taken = takenIdx.has(i);
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.style.background = taken ? '#444' : c.hex;
+        b.style.opacity = taken ? '0.35' : '1';
+        b.style.outline = i === chosen ? '4px solid #fff' : 'none';
+        b.textContent = c.name;
+        b.disabled = taken;
+        b.onclick = () => { chosen = i; refreshColors(); };
+        colorsEl.appendChild(b);
+      });
+    }
+
+    (async function boot() {
+      if (!net.CLOUD_ENABLED) { err('Cloud not configured.'); return; }
+      const existing = await net.readState(code);
+      if (!existing) { err('Room not found. Check the code.'); return; }
+      if (existing.phase !== 'lobby') { err('That game already set sail!'); }
+      await refreshColors();
+      net.subscribeRoster(code, refreshColors);
+    })();
+
+    document.getElementById('joinBtn').onclick = async () => {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) { err('Enter a name, matey!'); return; }
+      if (chosen < 0) { err('No colors left — crew is full.'); return; }
+      try {
+        const playerId = net.makePlayerId();
+        await net.joinAsPlayer(code, playerId, name, chosen);
+        localStorage.setItem('tt_player_' + code, playerId);
+        location.href = `controller.html?room=${code}`;
+      } catch (e) {
+        console.error(e);
+        err('Could not join. Try again.');
+        refreshColors();
+      }
+    };
+  </script>
+</body>
+</html>

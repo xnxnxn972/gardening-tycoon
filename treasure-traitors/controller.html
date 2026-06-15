@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Controller — Treasure Traitors</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+  { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
+  </script>
+</head>
+<body>
+  <div id="app" class="ctrl"></div>
+
+  <script type="module">
+    import * as net from './js/net.js';
+    import { isLegal } from './js/engine.js';
+
+    const code = net.roomFromUrl();
+    const playerId = localStorage.getItem('tt_player_' + code);
+    const app = document.getElementById('app');
+
+    let state = null;
+    let me = null;
+    let view = { mode: 'menu' };       // menu | targets:<type> | locked
+    let myAction = null;               // the move I submitted this round
+    let seenRound = -1;                // detect new choose phases
+
+    if (!playerId) location.href = `join.html?room=${code}`;
+
+    function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    function secsLeft(){ return state ? Math.max(0, Math.ceil((state.deadline - Date.now())/1000)) : 0; }
+
+    (async function boot() {
+      if (!net.CLOUD_ENABLED) { app.innerHTML = '<div class="center"><div class="banner">Cloud not configured.</div></div>'; return; }
+      const initial = await net.readState(code);
+      if (!initial) { localStorage.removeItem('tt_player_' + code); location.href = `join.html?room=${code}`; return; }
+      applyState(initial);
+      net.subscribeRoom(code, applyState);
+      setInterval(() => { const el = document.getElementById('ctimer'); if (el) el.textContent = '⏱ ' + secsLeft(); }, 250);
+    })();
+
+    function applyState(s) {
+      state = s;
+      me = (s.players || []).find(p => p.id === playerId) || me;
+      // New decision phase → reset the menu and clear my last move.
+      if (s.phase === 'choose' && s.round !== seenRound) {
+        seenRound = s.round;
+        view = { mode: 'menu' };
+        myAction = null;
+      }
+      render();
+    }
+
+    async function submit(action) {
+      myAction = action;
+      view = { mode: 'locked' };
+      render();
+      try { await net.submitAction(code, playerId, state.round, action); }
+      catch (e) { console.error(e); }
+    }
+
+    function render() {
+      if (!state) { app.innerHTML = '<div class="center"><h2>Loading…</h2></div>'; return; }
+      if (state.phase === 'lobby') return renderWaiting('Waiting for the captain to start the voyage… ⚓');
+      if (state.phase === 'over') return renderOver();
+      if (!me) return renderWaiting('Spectating…');
+      if (state.phase === 'reveal') return renderReveal();
+      if (view.mode === 'locked' && myAction) return renderLocked();
+      if (view.mode.startsWith('targets:')) return renderTargets(view.mode.split(':')[1]);
+      return renderMenu();
+    }
+
+    function header() {
+      const isl = state.map.islands[me.island];
+      const treasureHere = isl ? isl.treasure : 0;
+      return `
+        <div class="ctrl-header">
+          <span class="swatch" style="background:${me.color};width:34px;height:34px"></span>
+          <div class="ctrl-name">${esc(me.name)}</div>
+          <div id="ctimer" class="ctrl-timer">⏱ ${secsLeft()}</div>
+        </div>
+        <div class="ctrl-status">
+          <span class="pill">📍 ${esc(me.island)}</span>
+          <span class="pill">💰 ${me.treasure}</span>
+          <span class="pill">${me.damaged ? '⚠️ Damaged' : '🚢 Ship OK'}</span>
+        </div>
+        <div class="hint">Treasure here: ${'💰'.repeat(Math.min(treasureHere,5)) || '—'} (${treasureHere})</div>`;
+    }
+
+    function renderMenu() {
+      const isl = state.map.islands[me.island];
+      const onIsland = state.players.filter(p => p.island === me.island && p.id !== me.id);
+      const lootable = onIsland.filter(p => p.treasure > 0);
+      const anyTreasureElsewhere = state.players.some(p => p.id !== me.id && p.treasure > 0);
+
+      let buttons = '';
+      if (me.damaged) {
+        buttons = `<button class="full" data-act="repair"><span class="emoji">🔧</span>Repair Ship</button>
+                   <div class="hint full">Yer ship is busted — repair to sail again!</div>`;
+      } else {
+        const b = [];
+        if (isl.neighbors.length) b.push(`<button data-act="sail"><span class="emoji">⛵</span>Sail</button>`);
+        if (isl.treasure > 0)     b.push(`<button data-act="scavenge"><span class="emoji">💰</span>Scavenge</button>`);
+        if (lootable.length)      b.push(`<button data-act="loot"><span class="emoji">🪙</span>Loot</button>`);
+        if (onIsland.length)      b.push(`<button data-act="sabotage"><span class="emoji">💣</span>Sabotage</button>`);
+        if (anyTreasureElsewhere) b.push(`<button data-act="cannon"><span class="emoji">💥</span>Cannon Shot</button>`);
+        if (!b.length) b.push(`<button class="full" data-act="none"><span class="emoji">🌊</span>Hold Position</button>`);
+        buttons = b.join('');
+      }
+
+      app.innerHTML = `${header()}
+        <h3 style="text-align:center">Choose yer move!</h3>
+        <div class="action-grid">${buttons}</div>
+        <div class="hint">You can change yer move until the timer runs out.</div>`;
+
+      app.querySelectorAll('[data-act]').forEach(btn => btn.onclick = () => onAction(btn.getAttribute('data-act')));
+    }
+
+    function onAction(type) {
+      if (type === 'repair' || type === 'scavenge' || type === 'none') { submit({ type }); return; }
+      view = { mode: 'targets:' + type };
+      render();
+    }
+
+    function renderTargets(type) {
+      let title = '', items = [];
+      if (type === 'sail') {
+        title = '⛵ Sail to…';
+        items = state.map.islands[me.island].neighbors.map(n => ({
+          label: `${n}  (💰 ${state.map.islands[n].treasure})`, color: '#2a6f8e',
+          onclick: () => submit({ type: 'sail', destination: n }) }));
+      } else if (type === 'loot') {
+        title = '🪙 Loot whom?';
+        items = state.players.filter(p => p.island === me.island && p.id !== me.id && p.treasure > 0)
+          .map(p => ({ label: `${p.name}  (💰 ${p.treasure})`, color: p.color, onclick: () => submit({ type: 'loot', target: p.id }) }));
+      } else if (type === 'sabotage') {
+        title = '💣 Sabotage whom?';
+        items = state.players.filter(p => p.island === me.island && p.id !== me.id)
+          .map(p => ({ label: p.name, color: p.color, onclick: () => submit({ type: 'sabotage', target: p.id }) }));
+      } else if (type === 'cannon') {
+        title = '💥 Fire at whom?';
+        items = state.players.filter(p => p.id !== me.id && p.treasure > 0)
+          .map(p => ({ label: `${p.name}  (💰 ${p.treasure})`, color: p.color, onclick: () => submit({ type: 'cannon', target: p.id }) }));
+      }
+
+      const list = items.map((it, i) => `<button data-i="${i}" style="background:${it.color};color:#fff">${esc(it.label)}</button>`).join('')
+        || '<div class="hint">No valid targets — go back.</div>';
+
+      app.innerHTML = `${header()}
+        <h3 style="text-align:center">${title}</h3>
+        <div class="target-list">${list}</div>
+        <button class="ghost" id="backBtn">← Back</button>`;
+
+      app.querySelectorAll('[data-i]').forEach(btn => btn.onclick = items[Number(btn.getAttribute('data-i'))].onclick);
+      document.getElementById('backBtn').onclick = () => { view = { mode: 'menu' }; render(); };
+    }
+
+    function renderLocked() {
+      app.innerHTML = `${header()}
+        <div class="lockedin">🔒 Locked in!</div>
+        <div class="hint">Waiting for the other captains…</div>
+        <button class="ghost" id="changeBtn">↩ Change my move</button>`;
+      document.getElementById('changeBtn').onclick = () => { view = { mode: 'menu' }; render(); };
+    }
+
+    function renderReveal() {
+      const mine = state.messages || [];
+      app.innerHTML = `${header()}
+        <h3 style="text-align:center">🎬 Reveal!</h3>
+        <div class="card" style="max-height:50vh;overflow:auto">
+          ${mine.map(m => `<div class="log-item">${m.emoji} ${esc(m.text)}</div>`).join('')}
+        </div>
+        <div class="hint">Next round startin' soon…</div>`;
+    }
+
+    function renderWaiting(msg) {
+      const sw = me ? `<span class="swatch" style="background:${me.color};width:46px;height:46px"></span><h2>${esc(me.name)}</h2>` : '';
+      app.innerHTML = `<div class="center">${sw}<div class="hint">${msg}</div></div>`;
+    }
+
+    function renderOver() {
+      const r = state.results;
+      const iWon = me && r.winner.name === me.name;
+      app.innerHTML = `<div class="center">
+        <div style="font-size:60px">${iWon ? '🏆' : '🏴‍☠️'}</div>
+        <h2 class="winner" style="color:${r.winner.color}">${esc(r.winner.name)} wins!</h2>
+        <div class="hint">${iWon ? 'Ye are the richest pirate!' : 'Better luck next voyage, matey.'}</div>
+        ${me ? `<div class="pill" style="background:rgba(0,0,0,.3);padding:10px 16px;border-radius:20px">Yer booty: 💰 ${me.treasure}</div>` : ''}
+      </div>`;
+    }
+  </script>
+</body>
+</html>
