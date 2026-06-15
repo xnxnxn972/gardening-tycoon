@@ -72,6 +72,7 @@ export function lobbyState(code) {
     map: freshMap(),
     players: [],               // [{id,name,color,colorName,island,treasure,damaged,...}]
     messages: [],
+    events: [],
     results: null,
   };
 }
@@ -157,6 +158,7 @@ export function resolveRound(state, actions) {
   const map = state.map;
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const messages = [];
+  const events = [];   // structured, for the host's reveal animations
   const act = (p) => actions[p.id] || { type: 'none' };
 
   // Snapshot start-of-round state (loot/sabotage use start positions).
@@ -170,6 +172,7 @@ export function resolveRound(state, actions) {
   for (const p of players) {
     if (p.startDamaged && act(p).type === 'repair') {
       p.damaged = false;
+      events.push({ kind: 'repair', id: p.id, island: p.startIsland });
       messages.push({ emoji: '🔧', text: `${p.name} repaired the ship.`, color: p.color });
     }
   }
@@ -188,6 +191,7 @@ export function resolveRound(state, actions) {
     t.damaged = true;
     t.canceled = true; // cancels target's chosen action downstream
     t.timesDamaged += 1;
+    events.push({ kind: 'sabotage', target: id, island: t.startIsland });
     messages.push({ emoji: '💣', text: `Someone sabotaged ${t.name}'s ship!`, color: t.color, anon: true });
   }
 
@@ -199,6 +203,7 @@ export function resolveRound(state, actions) {
       t.treasure -= 1;
       map.islands[t.island].treasure += 1;
       p.cannonHits += 1;
+      events.push({ kind: 'cannon', target: t.id, island: t.island });
       messages.push({
         emoji: '💥',
         text: `Someone fired a cannon at ${t.name}! ${t.name} dropped 1 treasure on ${t.island}.`,
@@ -215,6 +220,7 @@ export function resolveRound(state, actions) {
       t.treasure -= 1;
       p.treasure += 1;
       p.loots += 1;
+      events.push({ kind: 'loot', actor: p.id, target: t.id, island: p.startIsland });
       messages.push({ emoji: '🪙', text: `${p.name} looted 1 treasure from ${t.name}!`, color: p.color });
     }
   }
@@ -234,6 +240,7 @@ export function resolveRound(state, actions) {
       map.islands[islandName].treasure -= 1;
       w.treasure += 1;
       w.scavenged += 1;
+      events.push({ kind: 'scavenge', id: w.id, island: islandName });
     }
     if (winners.length === 0) {
       messages.push({ emoji: '🗺️', text: `Pirates searched ${islandName} but found nothing!` });
@@ -255,6 +262,7 @@ export function resolveRound(state, actions) {
     if (a.type === 'sail' && !p.canceled) {
       if (map.islands[p.startIsland].neighbors.includes(a.destination)) {
         p.island = a.destination;
+        events.push({ kind: 'sail', id: p.id, from: p.startIsland, to: a.destination });
         messages.push({ emoji: '⛵', text: `${p.name} sailed to ${a.destination}.`, color: p.color });
       }
     }
@@ -266,6 +274,7 @@ export function resolveRound(state, actions) {
   for (const p of players) { delete p.startIsland; delete p.startDamaged; delete p.canceled; }
 
   state.messages = messages;
+  state.events = events;
   return messages;
 }
 
