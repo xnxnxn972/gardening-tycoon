@@ -9,7 +9,7 @@
   { "imports": { "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2" } }
   </script>
 </head>
-<body>
+<body class="sea-deco">
   <div id="app"></div>
 
   <script type="module">
@@ -19,42 +19,88 @@
 
     const code = net.roomFromUrl();
     const app = document.getElementById('app');
+    const DEMO = new URL(location.href).searchParams.get('demo');
 
     let state = null;          // authoritative game state (host is the referee)
     let lockedIds = new Set();  // players who submitted this round (for READY tags)
     let tick = null;
     let resolving = false;
 
+    // Per-island flavor + emoji (cosmetic only — logic uses the map graph).
+    const ISLAND_EMOJI = {
+      'Skull Rock': '💀', 'Rum Bay': '🍾', 'Gold Cove': '🏛️', 'Cannon Cay': '💣',
+      'Shark Reef': '🦈', 'Monkey Isle': '🐒', 'Shipwreck Point': '⚓', 'Treasure Atoll': '🗿',
+    };
+
     function esc(s) { return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
     function secsLeft() { return state ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 0; }
 
+    // ---- a little pirate ship drawn in SVG, tinted by player color ----
+    function shipPaths(color) {
+      return `
+        <path d="M-22 6 L22 6 L16 20 L-16 20 Z" fill="#7a4a22" stroke="#5b3415" stroke-width="1.5"/>
+        <rect x="-22" y="1.5" width="44" height="6" rx="3" fill="#9a6a3a"/>
+        <rect x="-1.2" y="-26" width="2.6" height="32" fill="#5b3b1a"/>
+        <path d="M2 -24 L2 2 L22 -2 Q15 -12 2 -24 Z" fill="${color}"/>
+        <path d="M-2 -22 L-2 1 L-18 -2 Q-11 -11 -2 -22 Z" fill="${color}" opacity="0.82"/>
+        <path d="M2 -27 L13 -25 L2 -22 Z" fill="#15171a"/>`;
+    }
+    function shipMiniSVG(color, w = 38) {
+      return `<svg width="${w}" viewBox="-26 -32 52 56" aria-hidden="true">${shipPaths(color)}</svg>`;
+    }
+    function shipOnMap(x, y, color, name, damaged) {
+      const w = Math.max(58, name.length * 9 + 20);
+      return `
+        <g transform="translate(${x},${y}) scale(0.82)">
+          ${shipPaths(color)}
+          ${damaged ? '<text x="0" y="-3" text-anchor="middle" font-size="18">⚠️</text>' : ''}
+          <g transform="translate(0,34)">
+            <rect x="${-w/2}" y="-13" width="${w}" height="23" rx="11" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+            <text x="0" y="3.5" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">${esc(name)}</text>
+          </g>
+        </g>`;
+    }
+
     // ---------- boot ----------
     (async function boot() {
+      if (DEMO) return bootDemo();
       if (!net.CLOUD_ENABLED) { app.innerHTML = errBox('Cloud not configured (js/net.js).'); return; }
-      try {
-        state = await net.readState(code);
-      } catch (e) { console.error(e); }
+      try { state = await net.readState(code); } catch (e) { console.error(e); }
       if (!state) { app.innerHTML = errBox('Room not found. <a href="index.html"><button>Back</button></a>'); return; }
 
-      // Roster changes only matter in the lobby.
       net.subscribeRoster(code, async () => {
         if (state && state.phase === 'lobby') { state.players = await rosterPlayers(); render(); }
       });
-      // Watch action submissions to show who's locked in.
       net.subscribeActions(code, (row) => {
-        if (row && state && state.phase === 'choose' && row.round === state.round) {
-          lockedIds.add(row.player_id); render();
-        }
+        if (row && state && state.phase === 'choose' && row.round === state.round) { lockedIds.add(row.player_id); render(); }
       });
 
-      if (state.phase === 'lobby') {
-        state.players = await rosterPlayers();
-        render();
-      } else {
-        startTicking(); // resume an in-progress match after a refresh
-        render();
-      }
+      if (state.phase === 'lobby') { state.players = await rosterPlayers(); render(); }
+      else { startTicking(); render(); }
     })();
+
+    // Visual demo (no DB): host.html?demo=1
+    function bootDemo() {
+      const names = ['Red Rogue', 'Blue Barracuda', 'Green Galleon', 'Golden Gull', 'Purple Parrot'];
+      const treasure = [12, 9, 7, 10, 8];
+      state = E.lobbyState('DEMO');
+      E.startGame(state, names.map((n, i) => ({ player_id: 'p' + i, name: n, color_index: i })));
+      state.round = 4;
+      state.phase = (DEMO === 'reveal') ? 'reveal' : 'choose';
+      state.deadline = Date.now() + 15000;
+      state.players.forEach((p, i) => { p.treasure = treasure[i]; });
+      state.players[3].damaged = true;
+      lockedIds = new Set(['p0', 'p2']);
+      if (state.phase === 'reveal') {
+        state.messages = [
+          { emoji: '⛵', text: 'Green Galleon sailed to Gold Cove.', color: '#2a9d3a' },
+          { emoji: '💰', text: 'Red Rogue found treasure on Skull Rock!', color: '#e63946' },
+          { emoji: '💣', text: "Someone sabotaged Golden Gull's ship!", anon: true },
+          { emoji: '💥', text: 'Someone fired a cannon at Blue Barracuda! Blue Barracuda dropped 1 treasure on Cannon Cay.', anon: true },
+        ];
+      }
+      render();
+    }
 
     async function rosterPlayers() {
       const roster = await net.readRoster(code);
@@ -68,14 +114,12 @@
     function errBox(msg) { return `<div class="center"><h1 class="title">⚓</h1><div class="banner">${msg}</div></div>`; }
 
     // ---------- referee loop ----------
-    function startTicking() {
-      clearInterval(tick);
-      tick = setInterval(onTick, 250);
-    }
+    function startTicking() { clearInterval(tick); tick = setInterval(onTick, 250); }
     async function onTick() {
       if (!state) return;
       const el = document.getElementById('timer');
-      if (el) el.textContent = secsLeft();
+      if (el) { el.textContent = secsLeft(); el.classList.toggle('urgent', secsLeft() <= 5); }
+      if (DEMO) return;
       if (Date.now() >= state.deadline && !resolving) {
         resolving = true;
         try {
@@ -102,11 +146,7 @@
 
     async function advance() {
       if (state.round >= state.totalRounds) {
-        E.endGame(state);
-        await net.writeState(code, state);
-        clearInterval(tick);
-        render();
-        return;
+        E.endGame(state); await net.writeState(code, state); clearInterval(tick); render(); return;
       }
       state.round += 1;
       state.phase = 'choose';
@@ -145,7 +185,8 @@
       app.innerHTML = `
         <div class="center">
           <h1 class="title">🏴‍☠️ Treasure Traitors</h1>
-          <div class="tagline">Sail. Steal. Betray your friends.</div>
+          <div class="ribbon">Pirate Party</div>
+          <div class="tagline" style="margin-top:10px">Sail. Steal. Betray your friends.</div>
           <div class="lobby-grid">
             <div class="card">
               <div class="muted">Scan to join on your phone</div>
@@ -164,10 +205,8 @@
 
       const btn = document.getElementById('startBtn');
       if (btn) btn.onclick = startGame;
-
       try {
-        const url = net.joinUrl(code);
-        const dataUrl = await QRCode.toDataURL(url, { width: 280, margin: 1 });
+        const dataUrl = await QRCode.toDataURL(net.joinUrl(code), { width: 280, margin: 1 });
         const qr = document.getElementById('qr');
         if (qr) qr.innerHTML = `<img src="${dataUrl}" alt="Join QR" />`;
       } catch (e) { console.warn('QR failed', e); }
@@ -177,6 +216,7 @@
       const isReveal = state.phase === 'reveal';
       const islands = state.map.islands;
 
+      // White route lines between neighbors (rendered under everything).
       let edges = '';
       const seen = new Set();
       for (const [name, isl] of Object.entries(islands)) {
@@ -185,69 +225,91 @@
           if (seen.has(key)) continue;
           seen.add(key);
           const a = islands[name], b = islands[nb];
-          edges += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" />`;
+          edges += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#0b3a55" stroke-width="11" stroke-linecap="round" opacity="0.35"/>`
+                 + `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity="0.9" stroke-dasharray="1 16"/>`;
         }
       }
 
+      // Island nodes: sandy disc, emoji, gold treasure pill, blue name pill.
       let nodes = '';
       for (const [name, isl] of Object.entries(islands)) {
-        const here = state.players.filter(p => p.island === name);
-        const ships = here.map((p, i) => {
-          const ang = (i / Math.max(1, here.length)) * Math.PI * 2 - Math.PI / 2;
-          const sx = isl.x + Math.cos(ang) * 52, sy = isl.y + Math.sin(ang) * 52;
-          const dmg = p.damaged ? '<tspan font-size="16">⚠️</tspan>' : '';
-          return `<text class="ship-emoji" x="${sx}" y="${sy}" fill="${p.color}">🚢${dmg}</text>`
-               + `<text x="${sx}" y="${sy + 22}" text-anchor="middle" font-size="13" font-weight="800" fill="${p.color}" stroke="#04222f" stroke-width="3" paint-order="stroke">${esc(p.name)}</text>`;
-        }).join('');
-        const treasure = isl.treasure > 0
-          ? `<text class="island-treasure" x="${isl.x}" y="${isl.y + 7}">${'💰'.repeat(Math.min(isl.treasure,4))}<tspan font-size="14" dy="-2"> ${isl.treasure}</tspan></text>`
-          : `<text class="island-treasure" x="${isl.x}" y="${isl.y + 7}" font-size="13" fill="#7a6">empty</text>`;
+        const emoji = ISLAND_EMOJI[name] || '🏝️';
+        const w = Math.max(96, name.length * 11 + 26);
+        const tnum = isl.treasure;
+        const treasurePill = tnum > 0
+          ? `<g transform="translate(${isl.x},${isl.y + 20})">
+               <rect x="-30" y="-13" width="60" height="24" rx="12" fill="#f4c44a" stroke="#a9712f" stroke-width="2"/>
+               <text x="0" y="4" text-anchor="middle" font-size="14" font-weight="900" fill="#5b3415">💰 ${tnum}</text></g>`
+          : '';
         nodes += `
-          <circle class="island-node" cx="${isl.x}" cy="${isl.y}" r="34" />
-          ${treasure}
-          <text class="island-label" x="${isl.x}" y="${isl.y - 44}">${esc(name)}</text>
-          ${ships}`;
+          <ellipse cx="${isl.x}" cy="${isl.y + 8}" rx="58" ry="20" fill="#000" opacity="0.18"/>
+          <ellipse cx="${isl.x}" cy="${isl.y}" rx="56" ry="38" fill="url(#sand)" stroke="#c9a063" stroke-width="3"/>
+          <text x="${isl.x}" y="${isl.y - 6}" text-anchor="middle" font-size="46">${emoji}</text>
+          ${treasurePill}
+          <g transform="translate(${isl.x},${isl.y + 56})">
+            <rect x="${-w/2}" y="-15" width="${w}" height="28" rx="14" fill="#1f6fa8" stroke="#ffffff" stroke-width="2"/>
+            <text x="0" y="4.5" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">${esc(name)}</text>
+          </g>`;
       }
 
-      const scoreboard = state.players.slice().sort((a,b)=>b.treasure-a.treasure).map(p => `
-        <div class="score-row">
-          <span class="swatch" style="background:${p.color}"></span>
-          <span class="score-name">${esc(p.name)}</span>
-          ${p.damaged ? '<span class="tag-damaged">DAMAGED</span>' : ''}
-          ${(!isReveal && lockedIds.has(p.id)) ? '<span class="tag-locked">READY</span>' : ''}
-          <span class="score-treasure">💰 ${p.treasure}</span>
+      // Ships fanned around their island.
+      let ships = '';
+      for (const [name, isl] of Object.entries(islands)) {
+        const here = state.players.filter(p => p.island === name);
+        here.forEach((p, i) => {
+          const ang = (i / Math.max(1, here.length)) * Math.PI * 2 - Math.PI / 2;
+          ships += shipOnMap(isl.x + Math.cos(ang) * 92, isl.y + Math.sin(ang) * 76, p.color, p.name, p.damaged);
+        });
+      }
+
+      // Top-right scoreboard tiles.
+      const tiles = state.players.slice().sort((a, b) => b.treasure - a.treasure).map(p => `
+        <div class="ship-tile ${p.damaged ? 'dmg' : ''}">
+          ${(!isReveal && lockedIds.has(p.id)) ? '<span class="ready">✔️</span>' : ''}
+          ${shipMiniSVG(p.color)}
+          <span class="count">${p.treasure}</span>
+          <span class="chest">🧰</span>
         </div>`).join('');
 
-      const log = isReveal
-        ? state.messages.map((m,i) =>
-            `<div class="log-item" style="animation-delay:${i*0.18}s">${m.emoji} ${esc(m.text)}</div>`).join('')
-        : '<div class="muted" style="padding:10px">All captains are plotting… 🤫</div>';
+      const overlay = isReveal ? `
+        <div class="reveal-overlay wood">
+          <h3>📜 Ship's Log</h3>
+          ${state.messages.map((m, i) => `<div class="log-item" style="animation-delay:${i*0.15}s">${m.emoji} ${esc(m.text)}</div>`).join('')}
+        </div>` : '';
 
       app.innerHTML = `
-        <div class="host-wrap">
-          <div class="host-header">
-            <div class="roundbox">
-              <div class="muted">ROUND</div>
-              <div class="phasebadge">${state.round} / ${state.totalRounds}</div>
+        <div class="board">
+          <svg class="map-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <radialGradient id="sand" cx="50%" cy="38%" r="70%">
+                <stop offset="0%" stop-color="#f9ecc4"/>
+                <stop offset="70%" stop-color="#eccf8e"/>
+                <stop offset="100%" stop-color="#d9b877"/>
+              </radialGradient>
+            </defs>
+            ${edges}${nodes}${ships}
+          </svg>
+
+          <div class="topbar">
+            <div class="logo-badge">
+              <div class="logo-main">TREASURE TRAITORS</div>
+              <div class="ribbon">Pirate Party</div>
             </div>
-            <div class="phasebadge" style="color:${isReveal ? '#ffd54a' : '#bfe6ff'}">
-              ${isReveal ? '🎬 Reveal!' : '🤫 Choose yer move!'}
+            <div class="center-hud">
+              <div class="wood round-pill">Round <b>${state.round}</b> / ${state.totalRounds}</div>
+              <div class="wood timer-medallion" id="timer">${secsLeft()}</div>
             </div>
-            <div id="timer" class="bigtimer">${secsLeft()}</div>
+            <div class="wood scoreboard-bar">${tiles}</div>
           </div>
-          <div class="map-panel">
-            <svg class="map-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">${edges}${nodes}</svg>
-          </div>
-          <div class="side-panel">
-            <div class="card scoreboard"><h3>🏆 Booty</h3>${scoreboard}</div>
-            <div class="card log-panel"><h3>📜 Ship's Log</h3>${log}</div>
-          </div>
+
+          <div class="phase-label">${isReveal ? '🎬 Reveal!' : '🤫 Choose yer move!'}</div>
+          ${overlay}
         </div>`;
     }
 
     function renderEnd() {
       const r = state.results;
-      const standings = r.standings.map((p,i) => `
+      const standings = r.standings.map((p, i) => `
         <div class="score-row">
           <span style="width:28px;font-weight:900">${i===0?'👑':(i+1)}</span>
           <span class="swatch" style="background:${p.color}"></span>

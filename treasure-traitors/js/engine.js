@@ -3,7 +3,7 @@
 // referee). No networking here — see net.js.
 
 export const TOTAL_ROUNDS = 15;
-export const CHOOSE_SECONDS = 10;
+export const CHOOSE_SECONDS = 15;
 export const REVEAL_SECONDS = 10;
 
 // Six pirate colors (supports 3–6 players).
