@@ -41,6 +41,36 @@
     let resolving = false;
     let renderSeq = 0;          // bumps each render so SMIL animations restart
 
+    // ---- keep the main screen awake for the whole match (on by default) ----
+    // Uses the native Screen Wake Lock API; re-acquires when the tab regains
+    // focus (the OS drops the lock when hidden). Falls back to NoSleep.js on
+    // older browsers without the API (e.g. iOS Safari < 16.4).
+    let wakeLock = null;
+    async function requestWakeLock() {
+      if (wakeLock || !('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) { /* may need a gesture; retried on interaction/visibility */ }
+    }
+    (async function keepAwake() {
+      requestWakeLock();
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') requestWakeLock();
+      });
+      window.addEventListener('pointerdown', requestWakeLock);
+      window.addEventListener('keydown', requestWakeLock);
+      if (!('wakeLock' in navigator)) {
+        try {
+          const mod = await import('https://esm.sh/nosleep.js@0.12.0');
+          const ns = new (mod.default || mod)();
+          const enable = () => ns.enable().catch(() => {});
+          window.addEventListener('pointerdown', enable, { once: true });
+          window.addEventListener('keydown', enable, { once: true });
+        } catch (e) { /* fallback unavailable — ignore */ }
+      }
+    })();
+
     const ISLAND_EMOJI = {
       'Skull Rock': '💀', 'Rum Bay': '🍾', 'Gold Cove': '🏛️', 'Cannon Cay': '💣',
       'Shark Reef': '🦈', 'Monkey Isle': '🐒', 'Shipwreck Point': '⚓', 'Treasure Atoll': '🗿',
