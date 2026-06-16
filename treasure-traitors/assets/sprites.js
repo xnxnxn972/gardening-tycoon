@@ -19,7 +19,7 @@ export const ISLAND_SPRITES = {
   'shark-reef':      'assets/islands/shark-reef.svg',
   'monkey-isle':     'assets/islands/monkey-isle.svg',
   'shipwreck-point': 'assets/islands/shipwreck-point.svg',
-  'treasure-atoll':  'assets/islands/treasure-atoll.svg',
+  'treasure-atoll':  'assets/islands/treasure-atoll.png',
 };
 
 // Ship art by player color index (0=Red,1=Blue,2=Green,3=Yellow,4=Purple,5=Orange).
