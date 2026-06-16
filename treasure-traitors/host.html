@@ -29,6 +29,7 @@
     import QRCode from 'https://esm.sh/qrcode@1.5.3';
     import * as net from './js/net.js';
     import * as E from './js/engine.js';
+    import { SPRITES_ENABLED, ISLAND_SPRITES, SHIP_SPRITES } from './assets/sprites.js';
 
     const code = net.roomFromUrl();
     const app = document.getElementById('app');
@@ -58,14 +59,33 @@
         <path d="M-2 -22 L-2 1 L-18 -2 Q-11 -11 -2 -22 Z" fill="${color}" opacity="0.82"/>
         <path d="M2 -27 L13 -25 L2 -22 Z" fill="#15171a"/>`;
     }
-    function shipMiniSVG(color, w = 38) {
-      return `<svg width="${w}" viewBox="-26 -32 52 56" aria-hidden="true">${shipPaths(color)}</svg>`;
+    // Ship body: sprite image if provided, else the built-in vector ship.
+    function shipArt(colorIndex, color) {
+      const sp = SPRITES_ENABLED && SHIP_SPRITES[colorIndex];
+      if (sp) return `<image href="${sp}" x="-27" y="-33" width="54" height="60" preserveAspectRatio="xMidYMid meet"/>`;
+      return shipPaths(color);
+    }
+    function shipMiniSVG(colorIndex, color, w = 38) {
+      return `<svg width="${w}" viewBox="-28 -34 56 62" aria-hidden="true">${shipArt(colorIndex, color)}</svg>`;
+    }
+    // Island body: sprite image if provided, else built-in disc + palms + emoji.
+    function islandArt(isl, name) {
+      const sp = SPRITES_ENABLED && ISLAND_SPRITES[isl.art];
+      if (sp) return `<image href="${sp}" x="${isl.x - 90}" y="${isl.y - 96}" width="180" height="162" preserveAspectRatio="xMidYMid meet"/>`;
+      const emoji = ISLAND_EMOJI[name] || '🏝️';
+      return `
+        <ellipse cx="${isl.x}" cy="${isl.y + 12}" rx="64" ry="18" fill="#000" opacity="0.18"/>
+        <ellipse cx="${isl.x}" cy="${isl.y + 6}" rx="60" ry="34" fill="#b89b6a"/>
+        <ellipse cx="${isl.x}" cy="${isl.y}" rx="56" ry="32" fill="url(#sand)" stroke="#c9a063" stroke-width="3"/>
+        <text x="${isl.x - 34}" y="${isl.y - 6}" text-anchor="middle" font-size="30">🌴</text>
+        <text x="${isl.x + 33}" y="${isl.y - 11}" text-anchor="middle" font-size="25">🌴</text>
+        <text x="${isl.x}" y="${isl.y - 1}" text-anchor="middle" font-size="44">${emoji}</text>`;
     }
     function shipGroup(p, pos, opts = {}) {
       const w = Math.max(58, p.name.length * 9 + 20);
       const inner = `
         <g transform="scale(0.82)">
-          ${shipPaths(p.color)}
+          ${shipArt(p.colorIndex, p.color)}
           ${p.damaged ? '<text x="0" y="-3" text-anchor="middle" font-size="18">⚠️</text>' : ''}
           <g transform="translate(0,34)">
             <rect x="${-w/2}" y="-13" width="${w}" height="23" rx="11" fill="${p.color}" stroke="#fff" stroke-width="1.5"/>
@@ -325,23 +345,17 @@
       // Islands (layered base + palms + feature + treasure + name)
       let nodes = '';
       for (const [name, isl] of Object.entries(islands)) {
-        const emoji = ISLAND_EMOJI[name] || '🏝️';
         const w = Math.max(96, name.length * 11 + 26);
         const tnum = isl.treasure;
         const treasurePill = tnum > 0
-          ? `<g transform="translate(${isl.x},${isl.y + 22})">
+          ? `<g transform="translate(${isl.x},${isl.y + 30})">
                <rect x="-30" y="-13" width="60" height="24" rx="12" fill="#f4c44a" stroke="#a9712f" stroke-width="2"/>
                <text x="0" y="4" text-anchor="middle" font-size="14" font-weight="900" fill="#5b3415">💰 ${tnum}</text></g>`
           : '';
         nodes += `
-          <ellipse cx="${isl.x}" cy="${isl.y + 12}" rx="64" ry="18" fill="#000" opacity="0.18"/>
-          <ellipse cx="${isl.x}" cy="${isl.y + 6}" rx="60" ry="34" fill="#b89b6a"/>
-          <ellipse cx="${isl.x}" cy="${isl.y}" rx="56" ry="32" fill="url(#sand)" stroke="#c9a063" stroke-width="3"/>
-          <text x="${isl.x - 34}" y="${isl.y - 6}" text-anchor="middle" font-size="30">🌴</text>
-          <text x="${isl.x + 33}" y="${isl.y - 11}" text-anchor="middle" font-size="25">🌴</text>
-          <text x="${isl.x}" y="${isl.y - 1}" text-anchor="middle" font-size="44">${emoji}</text>
+          ${islandArt(isl, name)}
           ${treasurePill}
-          <g transform="translate(${isl.x},${isl.y + 56})">
+          <g transform="translate(${isl.x},${isl.y + 60})">
             <rect x="${-w/2}" y="-15" width="${w}" height="28" rx="14" fill="#1f6fa8" stroke="#ffffff" stroke-width="2"/>
             <text x="0" y="4.5" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">${esc(name)}</text>
           </g>`;
@@ -377,7 +391,7 @@
       const tiles = state.players.slice().sort((a, b) => b.treasure - a.treasure).map(p => `
         <div class="ship-tile ${p.damaged ? 'dmg' : ''}">
           ${(!isReveal && lockedIds.has(p.id)) ? '<span class="ready">✔️</span>' : ''}
-          ${shipMiniSVG(p.color)}
+          ${shipMiniSVG(p.colorIndex, p.color)}
           <span class="count">${p.treasure}</span>
           <span class="chest">🧰</span>
         </div>`).join('');

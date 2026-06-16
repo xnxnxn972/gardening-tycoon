@@ -22,15 +22,17 @@ export const COLORS = [
 export function freshMap() {
   return {
     name: 'Skull Ring',
+    // `art` is a stable sprite id (see assets/sprites.js). New maps can reuse
+    // these ids or add new ones — layout stays data-driven, no PNG repaint.
     islands: {
-      'Skull Rock':      { neighbors: ['Rum Bay', 'Cannon Cay'],                          treasure: 2, x: 210, y: 120 },
-      'Rum Bay':         { neighbors: ['Skull Rock', 'Gold Cove'],                        treasure: 2, x: 480, y: 95  },
-      'Gold Cove':       { neighbors: ['Rum Bay', 'Shark Reef', 'Monkey Isle'],           treasure: 3, x: 660, y: 235 },
-      'Cannon Cay':      { neighbors: ['Skull Rock', 'Shark Reef'],                       treasure: 2, x: 140, y: 360 },
-      'Shark Reef':      { neighbors: ['Cannon Cay', 'Gold Cove', 'Shipwreck Point'],     treasure: 2, x: 390, y: 385 },
-      'Monkey Isle':     { neighbors: ['Gold Cove', 'Shipwreck Point', 'Treasure Atoll'], treasure: 2, x: 840, y: 350 },
-      'Shipwreck Point': { neighbors: ['Shark Reef', 'Monkey Isle', 'Treasure Atoll'],    treasure: 2, x: 600, y: 540 },
-      'Treasure Atoll':  { neighbors: ['Monkey Isle', 'Shipwreck Point'],                 treasure: 3, x: 850, y: 580 },
+      'Skull Rock':      { neighbors: ['Rum Bay', 'Cannon Cay'],                          treasure: 2, x: 210, y: 120, art: 'skull-rock' },
+      'Rum Bay':         { neighbors: ['Skull Rock', 'Gold Cove'],                        treasure: 2, x: 480, y: 95,  art: 'rum-bay' },
+      'Gold Cove':       { neighbors: ['Rum Bay', 'Shark Reef', 'Monkey Isle'],           treasure: 3, x: 660, y: 235, art: 'gold-cove' },
+      'Cannon Cay':      { neighbors: ['Skull Rock', 'Shark Reef'],                       treasure: 2, x: 140, y: 360, art: 'cannon-cay' },
+      'Shark Reef':      { neighbors: ['Cannon Cay', 'Gold Cove', 'Shipwreck Point'],     treasure: 2, x: 390, y: 385, art: 'shark-reef' },
+      'Monkey Isle':     { neighbors: ['Gold Cove', 'Shipwreck Point', 'Treasure Atoll'], treasure: 2, x: 840, y: 350, art: 'monkey-isle' },
+      'Shipwreck Point': { neighbors: ['Shark Reef', 'Monkey Isle', 'Treasure Atoll'],    treasure: 2, x: 600, y: 540, art: 'shipwreck-point' },
+      'Treasure Atoll':  { neighbors: ['Monkey Isle', 'Shipwreck Point'],                 treasure: 3, x: 850, y: 580, art: 'treasure-atoll' },
     },
   };
 }
