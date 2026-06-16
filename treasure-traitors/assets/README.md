@@ -27,14 +27,19 @@ The game draws the **treasure count** and the **ship name label** on top of the
 sprites, so your art only needs the island/vessel itself.
 
 ## Specs
-| Sprite | Recommended size | Notes |
+| Sprite | Required size | Notes |
 |---|---|---|
-| Island | ~**512×460 px**, transparent | Island centered; the "ground" near vertical center. Leave the bottom clear for the name label. |
-| Ship   | ~**256×280 px**, transparent | Vessel facing forward; centered; no name text (the game adds it). |
+| Island | **512 × 512 px**, **transparent** | Square canvas. Island **centered**, occupying ~the middle 70%, with transparent padding all around. Keep the **bottom ~20% clear** — the game draws the treasure count + name label there. |
+| Ship   | ~**256 × 280 px**, transparent | Vessel facing forward; centered; no name text (the game adds it). |
 
-- **Format:** PNG with transparency (or SVG). Square-ish, transparent background.
-- **Style:** keep a consistent angle / lighting / scale across all of them so the
-  board looks cohesive (top-down ¾ "diorama" view works well).
+- **TRANSPARENCY IS REQUIRED.** Export a PNG-24 with an alpha channel (or SVG).
+  A flattened/white background will show up as an ugly white box on the sea — the
+  game displays the file exactly as given and cannot strip a baked-in background.
+  Verify by viewing the PNG over a dark background or the editor's checkerboard.
+  Quick fix if needed: [remove.bg](https://remove.bg) or [Photopea](https://photopea.com).
+- **Style:** keep a consistent angle / lighting / scale across all islands so the
+  board looks cohesive (top-down ¾ "diorama" view works well). All islands are the
+  same 512×512 box, so matching internal scale keeps them visually even.
 
 ## Ways to create the art
 1. **AI image generators** (fastest): Midjourney / DALL·E / Leonardo / Stable Diffusion.
