@@ -12,13 +12,13 @@ export const SPRITES_ENABLED = true;
 
 // Island art id (from engine map `art`) -> image file.
 export const ISLAND_SPRITES = {
-  'skull-rock':      'assets/islands/skull-rock.svg',
-  'rum-bay':         'assets/islands/rum-bay.svg',
-  'gold-cove':       'assets/islands/gold-cove.svg',
-  'cannon-cay':      'assets/islands/cannon-cay.svg',
-  'shark-reef':      'assets/islands/shark-reef.svg',
-  'monkey-isle':     'assets/islands/monkey-isle.svg',
-  'shipwreck-point': 'assets/islands/shipwreck-point.svg',
+  'skull-rock':      'assets/islands/skull-rock.png',
+  'rum-bay':         'assets/islands/rum-bay.png',
+  'gold-cove':       'assets/islands/gold-cove.png',
+  'cannon-cay':      'assets/islands/cannon-cay.png',
+  'shark-reef':      'assets/islands/shark-reef.png',
+  'monkey-isle':     'assets/islands/monkey-isle.png',
+  'shipwreck-point': 'assets/islands/shipwreck-point.png',
   'treasure-atoll':  'assets/islands/treasure-atoll.png',
 };
 
