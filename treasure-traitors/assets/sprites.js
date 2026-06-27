@@ -26,10 +26,10 @@ export const ISLAND_SPRITES = {
 // The game still draws the name label + damage marker on top, so the sprite is
 // just the vessel art.
 export const SHIP_SPRITES = [
-  'assets/ships/red.svg',
-  'assets/ships/blue.svg',
-  'assets/ships/green.svg',
-  'assets/ships/yellow.svg',
-  'assets/ships/purple.svg',
-  'assets/ships/orange.svg',
+  'assets/ships/red.png',
+  'assets/ships/blue.png',
+  'assets/ships/green.png',
+  'assets/ships/yellow.png',
+  'assets/ships/purple.png',
+  'assets/ships/orange.png',
 ];
