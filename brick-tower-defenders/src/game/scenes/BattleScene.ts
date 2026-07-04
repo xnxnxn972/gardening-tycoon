@@ -43,6 +43,9 @@ export default class BattleScene extends Phaser.Scene {
   projectiles: Projectile[] = [];
   slots: BuildSlot[] = [];
 
+  /** Game-speed multiplier (1 = normal, 2 = fast-forward). */
+  timeScale = 1;
+
   private core!: Phaser.GameObjects.Image;
   private rangeGfx!: Phaser.GameObjects.Graphics;
 
@@ -64,6 +67,7 @@ export default class BattleScene extends Phaser.Scene {
     this.waveSystem = new WaveSystem(WAVES);
     this.economy = new EconomySystem();
     this.state = 'build';
+    this.setSpeed(1);
 
     // display size pinned so a background exported at any resolution still fits
     this.add
@@ -116,6 +120,13 @@ export default class BattleScene extends Phaser.Scene {
     } else {
       this.scene.launch('UI');
     }
+  }
+
+  /** Speeds up the whole simulation, including tweens/timers so fx keep pace. */
+  setSpeed(scale: number): void {
+    this.timeScale = scale;
+    this.tweens.timeScale = scale;
+    this.time.timeScale = scale;
   }
 
   // ------------------------------------------------------------------ waves
@@ -259,7 +270,7 @@ export default class BattleScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (this.state !== 'wave' && this.state !== 'build') return;
-    const dt = Math.min(delta / 1000, 0.05);
+    const dt = Math.min(delta / 1000, 0.05) * this.timeScale;
 
     if (this.state === 'wave') {
       this.waveSystem.update(dt, (id) => this.spawnEnemy(id));

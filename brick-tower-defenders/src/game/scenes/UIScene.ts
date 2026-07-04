@@ -31,6 +31,9 @@ export default class UIScene extends Phaser.Scene {
   private overlay: Phaser.GameObjects.Container | null = null;
   private overlayShown: 'none' | 'victory' | 'defeat' = 'none';
   private paused = false;
+  private speedOn = false;
+  private speedBg!: Phaser.GameObjects.Graphics;
+  private speedText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('UI');
@@ -63,6 +66,7 @@ export default class UIScene extends Phaser.Scene {
 
     this.createStartButton();
     this.createPauseButton();
+    this.createSpeedButton();
     this.createAimHint();
     this.createPauseOverlay();
 
@@ -125,6 +129,34 @@ export default class UIScene extends Phaser.Scene {
     if (btn.input) btn.input.cursor = 'pointer';
     btn.on('pointerdown', uiClick(() => this.togglePause()));
     btn.setDepth(DEPTH.ui);
+  }
+
+  private createSpeedButton(): void {
+    const btn = this.add.container(GAME_WIDTH - 102, 43);
+    this.speedBg = this.add.graphics();
+    btn.add(this.speedBg);
+    this.speedText = this.add
+      .text(0, 0, '2X', { fontFamily: UI_FONT, fontSize: '19px', color: '#ffffff', fontStyle: 'bold' })
+      .setOrigin(0.5);
+    btn.add(this.speedText);
+    btn.setInteractive(new Phaser.Geom.Rectangle(-24, -24, 48, 48), Phaser.Geom.Rectangle.Contains);
+    if (btn.input) btn.input.cursor = 'pointer';
+    btn.on('pointerdown', uiClick(() => this.toggleSpeed()));
+    btn.setDepth(DEPTH.ui);
+    this.redrawSpeedButton();
+  }
+
+  private toggleSpeed(): void {
+    if (this.overlayShown !== 'none') return;
+    this.speedOn = !this.speedOn;
+    this.battle.setSpeed(this.speedOn ? 2 : 1);
+    this.redrawSpeedButton();
+  }
+
+  private redrawSpeedButton(): void {
+    this.speedBg.clear();
+    drawPanel(this.speedBg, -24, -24, 48, 48, this.speedOn ? 0xffd23f : 0x2c3140, 0.9, 10);
+    this.speedText.setColor(this.speedOn ? '#ffd23f' : '#ffffff');
   }
 
   private createAimHint(): void {
@@ -252,6 +284,8 @@ export default class UIScene extends Phaser.Scene {
     this.resetAbilityUses();
     this.placementFamily = null;
     this.pendingAbility = null;
+    this.speedOn = false;
+    this.redrawSpeedButton();
     this.closeMenus();
     this.overlay?.destroy();
     this.overlay = null;
