@@ -9,10 +9,11 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Real art goes here later, using the same texture keys the placeholder
-    // generator registers, e.g.:
-    //   this.load.image('enemy_goblin', 'assets/enemies/goblin.png');
-    // Any key loaded here wins because generators skip existing textures.
+    // Real art, loaded under the same texture keys the placeholder generator
+    // registers. Any key loaded here wins because generators skip existing
+    // textures. See ASSETS.md for the full checklist and sizes.
+    this.load.image('bg_castle', 'assets/bg_castle.png');
+    this.load.image('tower_shooter', 'assets/tower_shooter.png');
   }
 
   create(): void {

@@ -65,7 +65,12 @@ export default class BattleScene extends Phaser.Scene {
     this.economy = new EconomySystem();
     this.state = 'build';
 
-    this.add.image(0, 0, this.level.theme.bgTexture).setOrigin(0).setDepth(DEPTH.bg);
+    // display size pinned so a background exported at any resolution still fits
+    this.add
+      .image(0, 0, this.level.theme.bgTexture)
+      .setOrigin(0)
+      .setDisplaySize(this.scale.width, this.scale.height)
+      .setDepth(DEPTH.bg);
 
     // Golden Brick Core with a gentle pulse
     this.core = this.add.image(this.level.core.x, this.level.core.y - 24, 'core').setDepth(DEPTH.core);

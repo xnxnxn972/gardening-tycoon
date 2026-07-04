@@ -2,3 +2,4 @@
 # /brick-tower-defenders/dist/. Rebuild with `npm run build` before pushing.
 node_modules/
 *.local
+.shots/
