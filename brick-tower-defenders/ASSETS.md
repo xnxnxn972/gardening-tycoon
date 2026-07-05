@@ -30,7 +30,7 @@ All sprites are drawn centered (origin 0.5) unless noted. The path/floor/walls a
 | `tower_power` | 68×86 | Wizard Tower (purple accent) |
 | `tower_smash` | 68×86 | Catapult Tower (red accent) |
 | `knight` | 28×32 | Barracks knight unit standing on the path |
-| `slot_pad` | 84×84 | Circular stone build pad |
+| `slot_pad` | 84×84 | Circular stone build pad — **currently hidden** (`slotOpacity: 0` in levelCastle.ts) because the pads are painted into `bg_castle.png`; only needed for maps without painted pads |
 | `core` | 130×122 | The Golden Brick Core (glow baked in is fine; code adds a pulse) |
 
 These tower textures are reused in the UI: tower cards show them at 0.82×, the build menu at 0.62× — so keep silhouettes readable when small.

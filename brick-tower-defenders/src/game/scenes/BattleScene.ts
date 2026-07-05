@@ -90,8 +90,12 @@ export default class BattleScene extends Phaser.Scene {
 
     // Build slots
     this.level.buildSlots.forEach((pos, index) => {
+      // The pad stays the click target even when the theme paints pads into
+      // the background. Phaser refuses to hit-test objects at alpha === 0
+      // (render mask), so "invisible" bottoms out at 0.01.
       const sprite = this.add
         .image(pos.x, pos.y, 'slot_pad')
+        .setAlpha(Math.max(0.01, this.level.theme.slotOpacity))
         .setDepth(DEPTH.slot)
         .setInteractive({ useHandCursor: true });
       const slot: BuildSlot = { index, x: pos.x, y: pos.y, sprite, tower: null };
