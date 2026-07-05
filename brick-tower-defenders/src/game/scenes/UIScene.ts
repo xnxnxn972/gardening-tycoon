@@ -84,12 +84,19 @@ export default class UIScene extends Phaser.Scene {
 
   private createStartButton(): void {
     this.startBtn = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT - 52);
+
+    // The pulse lives on an inner, non-interactive container. The outer
+    // startBtn keeps a fixed scale: Phaser's input hit-test intermittently
+    // fails on a container whose scale is actively being tweened (points
+    // inside it, even the center, miss ~30% of frames), so the clickable
+    // container must never be the tween target.
+    const visual = this.add.container(0, 0);
     const g = this.add.graphics();
     g.fillStyle(0x2a5c33, 0.95);
     g.fillRoundedRect(-140, -30, 280, 60, 16);
     g.lineStyle(3, 0x5fd66e, 1);
     g.strokeRoundedRect(-140, -30, 280, 60, 16);
-    this.startBtn.add(g);
+    visual.add(g);
     this.startText = this.add
       .text(0, 0, 'START WAVE 1', {
         fontFamily: UI_FONT,
@@ -98,17 +105,21 @@ export default class UIScene extends Phaser.Scene {
         fontStyle: 'bold'
       })
       .setOrigin(0.5);
-    this.startBtn.add(this.startText);
-    this.startBtn.setSize(280, 60);
+    visual.add(this.startText);
+    this.startBtn.add(visual);
+
+    // Hit area sized to the pulse peak (1.05×) so the enlarged visual is
+    // always fully clickable.
+    this.startBtn.setSize(294, 63);
     this.startBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-140, -30, 280, 60),
+      new Phaser.Geom.Rectangle(-147, -31.5, 294, 63),
       Phaser.Geom.Rectangle.Contains
     );
     if (this.startBtn.input) this.startBtn.input.cursor = 'pointer';
     this.startBtn.on('pointerdown', uiClick(() => this.battle.startWave()));
     this.startBtn.setDepth(DEPTH.ui);
     this.tweens.add({
-      targets: this.startBtn,
+      targets: visual,
       scale: 1.05,
       duration: 600,
       yoyo: true,
