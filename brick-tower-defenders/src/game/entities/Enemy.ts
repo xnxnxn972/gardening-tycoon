@@ -131,6 +131,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
 
     // Waypoint movement.
+    const xBefore = this.x;
     let step = this.def.speed * (1 - this.slowPercent) * dt;
     while (step > 0 && this.waypointIndex < this.path.points.length) {
       const target = this.path.points[this.waypointIndex];
@@ -152,6 +153,13 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
     if (this.waypointIndex >= this.path.points.length) {
       this.reachedEnd = true;
+    }
+
+    // Face the walking direction (enemy art faces left natively). On vertical
+    // stretches the horizontal delta is ~0 and the last facing is kept.
+    const dx = this.x - xBefore;
+    if (Math.abs(dx) > 0.01) {
+      this.sprite.setFlipX(dx > 0);
     }
 
     this.setDepth(DEPTH.entity + this.y * 0.001);
