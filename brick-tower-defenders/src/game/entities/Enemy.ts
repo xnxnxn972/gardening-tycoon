@@ -32,6 +32,14 @@ export class Enemy extends Phaser.GameObjects.Container {
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private flashTimer = 0;
 
+  // Walk/fly animation. frame2 is an optional second art frame named
+  // `<texture>_2` — if it was loaded, the sprite alternates frames while
+  // moving. The procedural waddle below works with or without it.
+  private walkPhase = 0;
+  private readonly frame2: string | null;
+  private frameTimer = 0;
+  private onFrame2 = false;
+
   constructor(scene: Phaser.Scene, def: EnemyDef, path: PathSystem) {
     super(scene, path.points[0].x, path.points[0].y);
     this.def = def;
@@ -46,6 +54,7 @@ export class Enemy extends Phaser.GameObjects.Container {
 
     this.sprite = scene.add.image(0, def.isFlying ? -FLY_HEIGHT : 0, def.texture);
     this.add(this.sprite);
+    this.frame2 = scene.textures.exists(def.texture + '_2') ? def.texture + '_2' : null;
 
     if (def.isFlying) {
       scene.tweens.add({
@@ -126,6 +135,9 @@ export class Enemy extends Phaser.GameObjects.Container {
           this.attackTimer = 0;
           this.blockedBy.takeDamage(this.def.meleeDamage);
         }
+        // stand still while fighting
+        this.sprite.rotation = 0;
+        if (!this.def.isFlying) this.sprite.y = 0;
         return;
       }
     }
@@ -162,6 +174,31 @@ export class Enemy extends Phaser.GameObjects.Container {
       this.sprite.setFlipX(dx > 0);
     }
 
+    this.animateMovement(dt);
+
     this.setDepth(DEPTH.entity + this.y * 0.001);
+  }
+
+  /** Toy-like walk cycle: a small hop + rocking, plus optional 2-frame art. */
+  private animateMovement(dt: number): void {
+    const moveSpeed = this.def.speed * (1 - this.slowPercent);
+
+    if (!this.def.isFlying) {
+      // waddle in time with actual speed, so slowed enemies visibly trudge
+      this.walkPhase += dt * moveSpeed * 0.15;
+      this.sprite.rotation = Math.sin(this.walkPhase) * 0.08;
+      this.sprite.y = -Math.abs(Math.sin(this.walkPhase)) * 3;
+    }
+
+    if (this.frame2) {
+      // bats flap fast and constantly; walkers step with their speed
+      const interval = this.def.isFlying ? 0.12 : 0.18 * (this.def.speed / Math.max(moveSpeed, 1));
+      this.frameTimer += dt;
+      if (this.frameTimer >= interval) {
+        this.frameTimer = 0;
+        this.onFrame2 = !this.onFrame2;
+        this.sprite.setTexture(this.onFrame2 ? this.frame2! : this.def.texture);
+      }
+    }
   }
 }

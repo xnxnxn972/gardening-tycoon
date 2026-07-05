@@ -21,6 +21,8 @@ All sprites are drawn centered (origin 0.5) unless noted. The path/floor/walls a
 | `enemy_bat` | 36×26 | Bat — flying (code adds a bobbing motion + drop shadow) |
 | `enemy_ogre` | 64×64 | Ogre mini-boss — big, red, horns/tusks |
 
+**Optional walk/fly animation (2nd frame):** for any enemy, add a second frame at the same size named `<key>_2.png` (e.g. `enemy_goblin_2.png`, `enemy_bat_2.png`) and load it in `PreloadScene` under the `_2` key. When present, the sprite alternates between the two frames while moving — walkers step in time with their speed, bats flap fast and constantly. If no `_2` frame exists, the enemy still gets a procedural toy-waddle (small hop + rock), so second frames are a pure enhancement, never required. Design the two frames as a simple A/B pose (e.g. left leg forward / right leg forward; wings up / wings down).
+
 ## Towers (base at bottom of canvas; drawn standing on the slot pad)
 
 | Key | Size | What it is |
