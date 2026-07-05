@@ -16,6 +16,9 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image('tower_shooter', 'assets/tower_shooter.png');
     this.load.image('tower_squad', 'assets/tower_squad.png');
     this.load.image('tower_power', 'assets/tower_power.png');
+    this.load.image('tower_smash', 'assets/tower_smash.png');
+    this.load.image('enemy_goblin', 'assets/enemy_goblin.png');
+    this.load.image('core', 'assets/core.png');
   }
 
   create(): void {
