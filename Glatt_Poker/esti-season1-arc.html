@@ -46,6 +46,13 @@
   tr.peak td.score{color:#c85a2e; font-weight:700;}
   tr.trough td.score{color:#12866a; font-weight:700;}
   .foot{margin-top:30px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:13.5px; font-style:italic;}
+  .ledger td{font-size:14px; vertical-align:top; line-height:1.5;}
+  .ledger td.n{font-family:'Heebo',sans-serif; font-weight:700; text-align:center; width:30px;}
+  .ledger th:nth-child(2){width:24%;}
+  tr.rp td.n{color:#c85a2e;} tr.rt td.n{color:#12866a;} tr.rf td.n{color:#7a6fe0;}
+  .arrow{font-family:'Heebo',sans-serif; font-size:12px; color:var(--muted); white-space:nowrap;}
+  .synth{background:var(--soft); border-right:4px solid var(--accent2); padding:13px 18px; margin:18px 0 0; font-size:15px;}
+  .synth strong{color:var(--accent2);}
 </style>
 </head>
 <body>
@@ -77,6 +84,28 @@
   <thead><tr><th>#</th><th>פרק</th><th>אירוע</th><th>מיקום</th></tr></thead>
   <tbody id="keyBody"></tbody>
 </table>
+
+<h2>יומן ההיפוכים</h2>
+<p style="font-size:14.5px; color:var(--muted); margin:0 0 12px;">בכל נקודת מפנה: מה הרוויחה (הפיתוי שהצטבר), והמחיר שדחף אותה לכיוון ההפוך.</p>
+<table class="ledger">
+  <thead><tr><th>#</th><th>נקודת מפנה</th><th>מה הרוויחה</th><th>המחיר שהפך אותה</th></tr></thead>
+  <tbody>
+    <tr class="rp"><td class="n">3</td><td>גג פורים · שיא פוקר</td><td>בפעם הראשונה היא נראית — הגאונות בגלוי, ריגוש הניצחון, עצמי שלא הרשו לה להיות.</td><td>נטשה את הדייט ונעלמה; השקר נולד. כדי להציל את השידוך היא נסוגה. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rt"><td class="n">6</td><td>אירוסין · שפל גלאט</td><td>שייכות — שידוך אמיתי, נחת להורים, ביטחון, עתיד מסודר.</td><td>המחיר הוא להתכווץ ולקבור את המתנה. היא לא מסוגלת; ממשיכה לשחק. <span class="arrow">← פוקר</span></td></tr>
+    <tr class="rp"><td class="n">7</td><td>חוב לסולי · שיא פוקר</td><td>המרדף והפנטזיה שתנצח את דרכה החוצה; ריגוש שהבית לא נותן.</td><td>מאבדת שליטה (טילט) ונמצאת בבעלות סולי; הפחד דוחף אותה אל החתונה כמפלט. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rt"><td class="n">8</td><td>החתונה · שפל גלאט (העמוק ביותר)</td><td>השייכות המלאה — אישה, בית, שמחת קהילה, גבר שהתחברה אליו.</td><td>קלף נתיב ישר: הבית הבטוח חלול, דוד לא יכול להיות שלה. אין כאן מקום להיראות. <span class="arrow">← פוקר</span></td></tr>
+    <tr class="rp"><td class="n">11</td><td>הפשיטה · שיא פוקר</td><td>הניצחון הגדול שלה; עולמו של מאור מקבל אותה כשדוד ואביגיל דחו אותה.</td><td>אזיקים, חשיפה, הצמיד מוחרם. התהילה הופכת לכלוב; היא זקוקה להצלה. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rt"><td class="n">12</td><td>פיוס בבית החולים · שפל גלאט</td><td>הצלה ונישואים אמיתיים יותר — שניים שרואים זה את סודו של זה.</td><td>מוכרת — אך עדיין בלתי נראית לעולם, עדיין קטנה. דלת ווגאס נפתחת. <span class="arrow">← פוקר</span></td></tr>
+    <tr class="rp"><td class="n">13</td><td>בר עם מאור · שיא פוקר</td><td>הכי היא-עצמה שהיתה — הבמה הגדולה, וגבר שאוהב אותה בדיוק כפי שהיא ליד השולחן.</td><td>הספק עולה (אותו היא אוהבת, או את המשחק?) + צל אביגיל: לקבל את זה במלואו = גלות. <span class="arrow">← הצומת</span></td></tr>
+    <tr class="rf"><td class="n">14</td><td>שני המונולוגים · הצומת</td><td>שני הצדדים טעונים במלואם — דוד: קיפול / מאור: אול-אין.</td><td>אין מחיר יחיד — שני הכיוונים מושכים באותה עוצמה. זה ה-50/50.</td></tr>
+    <tr class="rp"><td class="n">15</td><td>אליפות + אסימון · שיא פוקר</td><td>כל מה שהפוקר הבטיח — אלופה, נראית במלואה, באור. משחקת ומנצחת כמו שהיא.</td><td>האסימון נופל: הגיעה בדיוק למקום של אביגיל. להישאר = להפוך לאחותה: נראית, אך גולה. מחיר בלתי אפשרי. <span class="arrow">← הדרך השלישית</span></td></tr>
+    <tr class="rf"><td class="n">16</td><td>בוחרת בעצמה · הדרך השלישית</td><td>לוקחת את הקופה וקמה מהשולחן — שומרת את הניצחון, מסרבת להמר על השייכות.</td><td>לא קיפול ולא אול-אין: דרך שלישית, במחיר אמיתי (חשיפה, שם פגום, נישואים לא שלמים, מה שעשתה כדי לנצח).</td></tr>
+  </tbody>
+</table>
+
+<div class="synth">
+  <strong>התבנית שמתחת:</strong> שני הקטבים פוצעים אותה באופן הפוך ועקבי. עמוק ב<em>גלאט</em> — היא הופכת בלתי נראית וקטנה (הבית לא מכיל את גדולתה). עמוק ב<em>פוקר</em> — היא הופכת לא בטוחה וגולה (התהילה עולה לה בשייכות). המחיר של כל קוטב הוא בדיוק המתנה של הקוטב השני: הפוקר נותן "להיראות" וגוזל "להיות בטוחה"; הגלאט נותן "שייכות" וגוזל "להיראות". לכן היא לא יכולה לנוח באף מקום — והתנודה מובטחת עד שהיא סוללת דרך שלישית שמסרבת לעסקה עצמה.
+</div>
 
 <div class="foot">
   דחיסה של סקאפולד 8×45 דק׳. סיבת הפשיטה לפי החלטת החדר: הפזיזות של אסתי היא הסיבה, הפאניקה של סולי היא הטריגר — מאור נקי. מסמך פנימי.
