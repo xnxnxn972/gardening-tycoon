@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>גלאט פוקר — מסע אסתי בעונה 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#fffdf9; --card:#fff; --ink:#1a1a1a; --muted:#6b6b6b;
+    --accent:#7a1f1f; --accent2:#1f4e5f; --soft:#f5f1ea; --border:#e0d8cc;
+    --grid:#e1e0d9; --line:#1a1a1a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#161514; --card:#1f1e1c; --ink:#eceae4; --muted:#a4a099;
+      --accent:#e0a3a3; --accent2:#8fc5d4; --soft:#242220; --border:#33302b;
+      --grid:#2c2c2a; --line:#e8e8e6;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Frank Ruhl Libre','David',serif; color:var(--ink);
+    max-width:900px; margin:36px auto; padding:0 26px; line-height:1.65;
+    background:var(--bg); direction:rtl; text-align:right; font-size:16px;
+  }
+  header{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:20px;}
+  h1{font-family:'Heebo',sans-serif; font-size:27px; margin:0 0 6px; font-weight:700;}
+  .subtitle{color:var(--muted); font-style:italic; font-size:15px;}
+  .compass{background:var(--soft); border-right:4px solid var(--accent); padding:13px 18px; margin:18px 0 22px; font-size:15.5px;}
+  .compass strong{color:var(--accent);}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; justify-content:flex-end; font-family:'Heebo',sans-serif; font-size:12.5px; color:var(--muted); margin:0 0 10px;}
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .dot{width:11px; height:11px; border-radius:50%;}
+  .chart-wrap{position:relative; width:100%; height:460px; margin-bottom:26px;}
+  h2{font-family:'Heebo',sans-serif; font-size:18px; color:var(--accent); margin:30px 0 12px; font-weight:700;}
+  table{width:100%; border-collapse:collapse; font-size:14.5px;}
+  th,td{padding:7px 10px; border-bottom:1px solid var(--border); text-align:right;}
+  th{font-family:'Heebo',sans-serif; font-weight:700; color:var(--muted); font-size:13px;}
+  td.num{font-family:'Heebo',sans-serif; font-weight:700; width:34px;}
+  td.score{font-family:'Heebo',sans-serif; text-align:center; width:60px;}
+  tr.peak td.score{color:#c85a2e; font-weight:700;}
+  tr.trough td.score{color:#12866a; font-weight:700;}
+  .foot{margin-top:30px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:13.5px; font-style:italic;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>גלאט פוקר · מסע אסתי בעונה 1</h1>
+  <div class="subtitle">מטוטלת בין עולם הגלאט (דוד · בית · אמונה) לעולם הפוקר (מאור · סכנה · תהילה) — לאורך ציר 8 הפרקים</div>
+</header>
+
+<div class="compass">
+  <strong>מצפן:</strong> להפוך לעצמה — באיזה מחיר?
+  <br><br>
+  הקו מתאר את המשיכה והמסלול של אסתי בין שני העולמות בכל ביט מרכזי — <em>לא</em> את שמירת המצוות שלה (לפי עקרון "הדת גדֵלה עם החטא", היא מתפללת דווקא יותר ככל שהיא חוטאת יותר).
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#D85A30"></span>שיא לכיוון הפוקר</span>
+  <span><span class="dot" style="background:#1D9E75"></span>שיא לכיוון הגלאט</span>
+  <span><span class="dot" style="background:#7F77DD"></span>צומת בחירה</span>
+  <span><span class="dot" style="background:#888780"></span>ביט רגיל</span>
+</div>
+
+<div class="chart-wrap">
+  <canvas id="estiTl" role="img" aria-label="מיקום אסתי בין עולם הגלאט לעולם הפוקר על פני 8 פרקים; שיאים בגג פורים, בפשיטה ובאליפות, ושפלים באירוסין ובחתונה, עם נחיתה באמצע משולב בסיום.">גרף של מיקום אסתי בין עולם הגלאט לעולם הפוקר לאורך העונה.</canvas>
+</div>
+
+<h2>מפתח האירועים</h2>
+<table>
+  <thead><tr><th>#</th><th>פרק</th><th>אירוע</th><th>מיקום</th></tr></thead>
+  <tbody id="keyBody"></tbody>
+</table>
+
+<div class="foot">
+  דחיסה של סקאפולד 8×45 דק׳. סיבת הפשיטה לפי החלטת החדר: הפזיזות של אסתי היא הסיבה, הפאניקה של סולי היא הטריגר — מאור נקי. מסמך פנימי.
+</div>
+
+<script>
+(function(){
+  var isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  var ink = isDark?'#e8e8e6':'#1a1a1a', muted='#898781', grid=isDark?'#2c2c2a':'#e1e0d9';
+  var C={coral:'#D85A30',teal:'#1D9E75',purple:'#7F77DD',gray:'#888780'};
+  var P=[
+   {n:1,x:0.75,y:16,c:'gray',ep:'פרק 1',l:'פתיחה — נערת גלאט חסרת מנוחה'},
+   {n:2,x:1.05,y:45,c:'gray',ep:'פרק 1',l:'מגלה את הפוקר (מאור / פרגוסון)'},
+   {n:3,x:1.35,y:72,c:'coral',ep:'פרק 1',l:'גג פורים — נוטשת את הדייט'},
+   {n:4,x:1.95,y:60,c:'gray',ep:'פרק 2',l:'פוקר אונליין להציל את העיתון'},
+   {n:5,x:2.3,y:38,c:'gray',ep:'פרק 2',l:'הרומן עם דוד מתחדש'},
+   {n:6,x:2.9,y:28,c:'teal',ep:'פרק 3',l:'אירוסין לדוד'},
+   {n:7,x:3.25,y:66,c:'gray',ep:'פרק 3',l:'טילט → חוב לסולי'},
+   {n:8,x:3.85,y:24,c:'teal',ep:'פרק 4',l:'החתונה'},
+   {n:9,x:4.55,y:46,c:'gray',ep:'פרק 4–5',l:'קלף נתיב ישר / עוזבת את דוד'},
+   {n:10,x:5.05,y:78,c:'gray',ep:'פרק 5',l:'משחק היאכטה'},
+   {n:11,x:5.4,y:86,c:'coral',ep:'פרק 5',l:'הפשיטה / מעצר'},
+   {n:12,x:6.0,y:40,c:'gray',ep:'פרק 6',l:'פיוס בבית החולים'},
+   {n:13,x:7.0,y:76,c:'coral',ep:'פרק 7',l:'בר עם מאור (ווגאס)'},
+   {n:14,x:7.75,y:50,c:'purple',ep:'פרק 8',l:'שני המונולוגים (דוד מול מאור)'},
+   {n:15,x:8.05,y:90,c:'coral',ep:'פרק 8',l:'אליפות + סמל האסימון'},
+   {n:16,x:8.3,y:40,c:'purple',ep:'פרק 8',l:'בוחרת בעצמה ובאמונה'},
+   {n:17,x:8.55,y:34,c:'teal',ep:'פרק 8',l:'שדה התעופה: צ׳אנס לדוד'}
+  ];
+  var kb=document.getElementById('keyBody');
+  P.forEach(function(p){
+    var tr=document.createElement('tr');
+    if(p.c==='coral')tr.className='peak'; else if(p.c==='teal')tr.className='trough';
+    tr.innerHTML='<td class="num">'+p.n+'</td><td>'+p.ep+'</td><td>'+p.l+'</td><td class="score">'+p.y+'</td>';
+    kb.appendChild(tr);
+  });
+  var deco={id:'deco',
+    beforeDraw:function(ch){
+      var a=ch.chartArea,ys=ch.scales.y,xs=ch.scales.x,ctx=ch.ctx;if(!a)return;
+      var yMid=ys.getPixelForValue(50);
+      ctx.save();
+      ctx.fillStyle='rgba(216,90,48,0.09)';ctx.fillRect(a.left,a.top,a.right-a.left,yMid-a.top);
+      ctx.fillStyle='rgba(29,158,117,0.09)';ctx.fillRect(a.left,yMid,a.right-a.left,a.bottom-yMid);
+      ctx.strokeStyle=grid;
+      for(var e=1;e<8;e++){var xb=xs.getPixelForValue(e+0.5);ctx.beginPath();ctx.moveTo(xb,a.top);ctx.lineTo(xb,a.bottom);ctx.stroke();}
+      ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(a.left,yMid);ctx.lineTo(a.right,yMid);ctx.stroke();ctx.setLineDash([]);
+      ctx.direction='rtl';ctx.textAlign='right';ctx.font='500 13px sans-serif';
+      ctx.fillStyle=isDark?'#F0997B':'#993C1D';ctx.fillText('עולם הפוקר · מאור · סכנה · תהילה',a.right-10,a.top+18);
+      ctx.fillStyle=isDark?'#5DCAA5':'#0F6E56';ctx.fillText('עולם הגלאט · דוד · בית · אמונה',a.right-10,a.bottom-12);
+      ctx.restore();
+    },
+    afterDatasetsDraw:function(ch){
+      var m=ch.getDatasetMeta(0),ctx=ch.ctx,a=ch.chartArea;ctx.save();
+      ctx.font='600 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      for(var i=0;i<P.length;i++){var pt=m.data[i];var dy=(P[i].y>=80)?15:-14;
+        var yy=pt.y+dy;if(yy<a.top+8)yy=pt.y+15;if(yy>a.bottom-8)yy=pt.y-14;
+        ctx.fillStyle=C[P[i].c];ctx.fillText(String(P[i].n),pt.x,yy);}
+      ctx.restore();
+    }};
+  new Chart(document.getElementById('estiTl'),{
+    type:'line',
+    data:{datasets:[{data:P.map(function(p){return {x:p.x,y:p.y}}),
+      borderColor:ink,borderWidth:2.5,tension:0.35,
+      pointBackgroundColor:P.map(function(p){return C[p.c]}),
+      pointBorderColor:isDark?'#1a1a19':'#fcfcfb',pointBorderWidth:1.5,
+      pointRadius:P.map(function(p){return p.c==='gray'?5:7}),pointHoverRadius:9}]},
+    plugins:[deco],
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8,right:6}},
+      scales:{
+        y:{min:0,max:100,grid:{color:grid},border:{display:false},
+          ticks:{color:muted,stepSize:50,callback:function(v){return v===100?'פוקר':v===50?'על הגדר':v===0?'גלאט':''}}},
+        x:{type:'linear',min:0.5,max:8.7,grid:{display:false},border:{color:grid},
+          ticks:{color:muted,stepSize:1,font:{size:12},autoSkip:false,
+            callback:function(v){return (v>=1&&v<=8&&Number.isInteger(v))?('פרק '+v):''}}}
+      },
+      plugins:{legend:{display:false},
+        tooltip:{rtl:true,titleFont:{size:13},bodyFont:{size:12},padding:10,
+          callbacks:{title:function(it){var p=P[it[0].dataIndex];return p.ep+' · '+p.n},
+            label:function(it){var p=P[it.dataIndex];return p.l+' — מיקום '+p.y+'/100'}}}}
+    }
+  });
+})();
+</script>
+</body>
+</html>
