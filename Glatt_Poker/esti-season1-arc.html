@@ -25,18 +25,18 @@
   *{box-sizing:border-box;}
   body{
     font-family:'Frank Ruhl Libre','David',serif; color:var(--ink);
-    max-width:900px; margin:36px auto; padding:0 26px; line-height:1.65;
+    max-width:920px; margin:36px auto; padding:0 26px; line-height:1.65;
     background:var(--bg); direction:rtl; text-align:right; font-size:16px;
   }
   header{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:20px;}
   h1{font-family:'Heebo',sans-serif; font-size:27px; margin:0 0 6px; font-weight:700;}
   .subtitle{color:var(--muted); font-style:italic; font-size:15px;}
-  .compass{background:var(--soft); border-right:4px solid var(--accent); padding:13px 18px; margin:18px 0 22px; font-size:15.5px;}
+  .compass{background:var(--soft); border-right:4px solid var(--accent); padding:14px 18px; margin:18px 0 22px; font-size:15.5px;}
   .compass strong{color:var(--accent);}
   .legend{display:flex; flex-wrap:wrap; gap:14px; justify-content:flex-end; font-family:'Heebo',sans-serif; font-size:12.5px; color:var(--muted); margin:0 0 10px;}
   .legend span{display:flex; align-items:center; gap:6px;}
   .dot{width:11px; height:11px; border-radius:50%;}
-  .chart-wrap{position:relative; width:100%; height:460px; margin-bottom:26px;}
+  .chart-wrap{position:relative; width:100%; height:470px; margin-bottom:26px;}
   h2{font-family:'Heebo',sans-serif; font-size:18px; color:var(--accent); margin:30px 0 12px; font-weight:700;}
   table{width:100%; border-collapse:collapse; font-size:14.5px;}
   th,td{padding:7px 10px; border-bottom:1px solid var(--border); text-align:right;}
@@ -48,7 +48,7 @@
   .foot{margin-top:30px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:13.5px; font-style:italic;}
   .ledger td{font-size:14px; vertical-align:top; line-height:1.5;}
   .ledger td.n{font-family:'Heebo',sans-serif; font-weight:700; text-align:center; width:30px;}
-  .ledger th:nth-child(2){width:24%;}
+  .ledger th:nth-child(2){width:22%;}
   tr.rp td.n{color:#c85a2e;} tr.rt td.n{color:#12866a;} tr.rf td.n{color:#7a6fe0;}
   .arrow{font-family:'Heebo',sans-serif; font-size:12px; color:var(--muted); white-space:nowrap;}
   .synth{background:var(--soft); border-right:4px solid var(--accent2); padding:13px 18px; margin:18px 0 0; font-size:15px;}
@@ -59,7 +59,7 @@
 
 <header>
   <h1>גלאט פוקר · מסע אסתי בעונה 1</h1>
-  <div class="subtitle">מטוטלת בין עולם הגלאט (דוד · בית · אמונה) לעולם הפוקר (מאור · סכנה · תהילה) — לאורך ציר 8 הפרקים</div>
+  <div class="subtitle">מטוטלת בין עולם הגלאט (דוד · בית · אמונה) לעולם הפוקר (מאור · סכנה · תהילה) — לאורך ציר 8 הפרקים. פרקים 1–4 מאומתים מול התסריטים המלאים; פרקים 5–8 לפי האאוטליין.</div>
 </header>
 
 <div class="compass">
@@ -86,20 +86,19 @@
 </table>
 
 <h2>יומן ההיפוכים</h2>
-<p style="font-size:14.5px; color:var(--muted); margin:0 0 12px;">בכל נקודת מפנה: מה הרוויחה (הפיתוי שהצטבר), והמחיר שדחף אותה לכיוון ההפוך.</p>
+<p style="font-size:14.5px; color:var(--muted); margin:0 0 12px;">בנקודות המפנה המרכזיות: מה הרוויחה (הפיתוי שהצטבר), והמחיר שדחף אותה לכיוון ההפוך.</p>
 <table class="ledger">
   <thead><tr><th>#</th><th>נקודת מפנה</th><th>מה הרוויחה</th><th>המחיר שהפך אותה</th></tr></thead>
   <tbody>
-    <tr class="rp"><td class="n">3</td><td>גג פורים · שיא פוקר</td><td>בפעם הראשונה היא נראית — הגאונות בגלוי, ריגוש הניצחון, עצמי שלא הרשו לה להיות.</td><td>נטשה את הדייט ונעלמה; השקר נולד. כדי להציל את השידוך היא נסוגה. <span class="arrow">← גלאט</span></td></tr>
-    <tr class="rt"><td class="n">6</td><td>אירוסין · שפל גלאט</td><td>שייכות — שידוך אמיתי, נחת להורים, ביטחון, עתיד מסודר.</td><td>המחיר הוא להתכווץ ולקבור את המתנה. היא לא מסוגלת; ממשיכה לשחק. <span class="arrow">← פוקר</span></td></tr>
-    <tr class="rp"><td class="n">7</td><td>חוב לסולי · שיא פוקר</td><td>המרדף והפנטזיה שתנצח את דרכה החוצה; ריגוש שהבית לא נותן.</td><td>מאבדת שליטה (טילט) ונמצאת בבעלות סולי; הפחד דוחף אותה אל החתונה כמפלט. <span class="arrow">← גלאט</span></td></tr>
-    <tr class="rt"><td class="n">8</td><td>החתונה · שפל גלאט (העמוק ביותר)</td><td>השייכות המלאה — אישה, בית, שמחת קהילה, גבר שהתחברה אליו.</td><td>קלף נתיב ישר: הבית הבטוח חלול, דוד לא יכול להיות שלה. אין כאן מקום להיראות. <span class="arrow">← פוקר</span></td></tr>
-    <tr class="rp"><td class="n">11</td><td>הפשיטה · שיא פוקר</td><td>הניצחון הגדול שלה; עולמו של מאור מקבל אותה כשדוד ואביגיל דחו אותה.</td><td>אזיקים, חשיפה, הצמיד מוחרם. התהילה הופכת לכלוב; היא זקוקה להצלה. <span class="arrow">← גלאט</span></td></tr>
-    <tr class="rt"><td class="n">12</td><td>פיוס בבית החולים · שפל גלאט</td><td>הצלה ונישואים אמיתיים יותר — שניים שרואים זה את סודו של זה.</td><td>מוכרת — אך עדיין בלתי נראית לעולם, עדיין קטנה. דלת ווגאס נפתחת. <span class="arrow">← פוקר</span></td></tr>
-    <tr class="rp"><td class="n">13</td><td>בר עם מאור · שיא פוקר</td><td>הכי היא-עצמה שהיתה — הבמה הגדולה, וגבר שאוהב אותה בדיוק כפי שהיא ליד השולחן.</td><td>הספק עולה (אותו היא אוהבת, או את המשחק?) + צל אביגיל: לקבל את זה במלואו = גלות. <span class="arrow">← הצומת</span></td></tr>
-    <tr class="rf"><td class="n">14</td><td>שני המונולוגים · הצומת</td><td>שני הצדדים טעונים במלואם — דוד: קיפול / מאור: אול-אין.</td><td>אין מחיר יחיד — שני הכיוונים מושכים באותה עוצמה. זה ה-50/50.</td></tr>
-    <tr class="rp"><td class="n">15</td><td>אליפות + אסימון · שיא פוקר</td><td>כל מה שהפוקר הבטיח — אלופה, נראית במלואה, באור. משחקת ומנצחת כמו שהיא.</td><td>האסימון נופל: הגיעה בדיוק למקום של אביגיל. להישאר = להפוך לאחותה: נראית, אך גולה. מחיר בלתי אפשרי. <span class="arrow">← הדרך השלישית</span></td></tr>
-    <tr class="rf"><td class="n">16</td><td>בוחרת בעצמה · הדרך השלישית</td><td>לוקחת את הקופה וקמה מהשולחן — שומרת את הניצחון, מסרבת להמר על השייכות.</td><td>לא קיפול ולא אול-אין: דרך שלישית, במחיר אמיתי (חשיפה, שם פגום, נישואים לא שלמים, מה שעשתה כדי לנצח).</td></tr>
+    <tr class="rp"><td class="n">4</td><td>גג פורים · שיא פוקר</td><td>לראשונה היא נראית — הגאונות בגלוי, ריגוש הניצחון.</td><td>נטשה את הדייט המחודש עם דוד ונעלמה; רצה להציל את השידוך. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rp"><td class="n">6</td><td>רוטשילד עם מאור · שיא פוקר</td><td>אינטימיות אמיתית, ו"חלום ה-WSOP — איתך".</td><td>חצתה גבול קרבה שהיא חוששת ממנו; רצה למצוא את דוד בזירת זק"א. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rp"><td class="n">9</td><td>חוב לסולי · שיא פוקר</td><td>המרדף והפנטזיה שתנצח את דרכה החוצה.</td><td>טילט, ופתאום בבעלות סולי (42K); נאחזת באירוסין ובנישואים כמפלט. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rt"><td class="n">13</td><td>החתונה · שפל גלאט (העמוק ביותר)</td><td>השייכות המלאה — אישה, בית, שמחת קהילה.</td><td>קלף "נתיב ישר" (14): הבית הבטוח חלול, דוד לא יכול להיות שלה. <span class="arrow">← פוקר</span></td></tr>
+    <tr class="rp"><td class="n">17</td><td>הפשיטה · שיא פוקר</td><td>הניצחון הגדול שלה; עולמו של מאור מקבל אותה כשדוד ואביגיל דחו.</td><td>אזיקים, חשיפה, הצמיד מוחרם; זקוקה להצלה. <span class="arrow">← גלאט</span></td></tr>
+    <tr class="rt"><td class="n">18</td><td>פיוס בבית החולים · שפל גלאט</td><td>הצלה, ונישואים אמיתיים יותר — דוד רואה אותה.</td><td>מוכרת — אך עדיין בלתי נראית לעולם, עדיין קטנה. דלת ווגאס נפתחת. <span class="arrow">← פוקר</span></td></tr>
+    <tr class="rp"><td class="n">20</td><td>בר עם מאור · שיא פוקר</td><td>הכי היא-עצמה שהיתה — הבמה, וגבר שאוהב אותה כפי שהיא.</td><td>הספק (אותו היא אוהבת, או את המשחק?) + צל אביגיל: לקבל את זה = גלות. <span class="arrow">← הצומת</span></td></tr>
+    <tr class="rp"><td class="n">22</td><td>אליפות + אסימון · שיא פוקר</td><td>כל מה שהפוקר הבטיח — אלופה, נראית במלואה.</td><td>הגיעה בדיוק למקום של אחותה. להישאר = להפוך לאביגיל: נראית, אך גולה. <span class="arrow">← הדרך השלישית</span></td></tr>
+    <tr class="rf"><td class="n">23</td><td>בוחרת בעצמה · הדרך השלישית</td><td>לוקחת את הקופה וקמה מהשולחן — שומרת את הניצחון, מסרבת להמר על השייכות.</td><td>לא קיפול ולא אול-אין: דרך שלישית, במחיר אמיתי (חשיפה, שם פגום, נישואים לא שלמים).</td></tr>
   </tbody>
 </table>
 
@@ -108,7 +107,7 @@
 </div>
 
 <div class="foot">
-  דחיסה של סקאפולד 8×45 דק׳. סיבת הפשיטה לפי החלטת החדר: הפזיזות של אסתי היא הסיבה, הפאניקה של סולי היא הטריגר — מאור נקי. מסמך פנימי.
+  פרקים 1–4 אומתו מול התסריטים המלאים (8-6/5-6/7-6-2026); פרקים 5–8 מבוססים על האאוטליין בלבד. סיבת הפשיטה לפי החלטת החדר (לא נעולה): הפזיזות של אסתי היא הסיבה, הפאניקה של סולי היא הטריגר — מאור נקי. מסמך פנימי.
 </div>
 
 <script>
@@ -117,23 +116,30 @@
   var ink = isDark?'#e8e8e6':'#1a1a1a', muted='#898781', grid=isDark?'#2c2c2a':'#e1e0d9';
   var C={coral:'#D85A30',teal:'#1D9E75',purple:'#7F77DD',gray:'#888780'};
   var P=[
-   {n:1,x:0.75,y:16,c:'gray',ep:'פרק 1',l:'פתיחה — נערת גלאט חסרת מנוחה'},
-   {n:2,x:1.05,y:45,c:'gray',ep:'פרק 1',l:'מגלה את הפוקר (מאור / פרגוסון)'},
-   {n:3,x:1.35,y:72,c:'coral',ep:'פרק 1',l:'גג פורים — נוטשת את הדייט'},
-   {n:4,x:1.95,y:60,c:'gray',ep:'פרק 2',l:'פוקר אונליין להציל את העיתון'},
-   {n:5,x:2.3,y:38,c:'gray',ep:'פרק 2',l:'הרומן עם דוד מתחדש'},
-   {n:6,x:2.9,y:28,c:'teal',ep:'פרק 3',l:'אירוסין לדוד'},
-   {n:7,x:3.25,y:66,c:'gray',ep:'פרק 3',l:'טילט → חוב לסולי'},
-   {n:8,x:3.85,y:24,c:'teal',ep:'פרק 4',l:'החתונה'},
-   {n:9,x:4.55,y:46,c:'gray',ep:'פרק 4–5',l:'קלף נתיב ישר / עוזבת את דוד'},
-   {n:10,x:5.05,y:78,c:'gray',ep:'פרק 5',l:'משחק היאכטה'},
-   {n:11,x:5.4,y:86,c:'coral',ep:'פרק 5',l:'הפשיטה / מעצר'},
-   {n:12,x:6.0,y:40,c:'gray',ep:'פרק 6',l:'פיוס בבית החולים'},
-   {n:13,x:7.0,y:76,c:'coral',ep:'פרק 7',l:'בר עם מאור (ווגאס)'},
-   {n:14,x:7.75,y:50,c:'purple',ep:'פרק 8',l:'שני המונולוגים (דוד מול מאור)'},
-   {n:15,x:8.05,y:90,c:'coral',ep:'פרק 8',l:'אליפות + סמל האסימון'},
-   {n:16,x:8.3,y:40,c:'purple',ep:'פרק 8',l:'בוחרת בעצמה ובאמונה'},
-   {n:17,x:8.55,y:34,c:'teal',ep:'פרק 8',l:'שדה התעופה: צ׳אנס לדוד'}
+   {n:1,x:0.65,y:16,c:'gray',ep:'פרק 1',l:'פתיחה — נערת גלאט חסרת מנוחה'},
+   {n:2,x:0.9,y:45,c:'gray',ep:'פרק 1',l:'מגלה את הפוקר (מאור / פרגוסון)'},
+   {n:3,x:1.15,y:28,c:'gray',ep:'פרק 1',l:'דייט ראשון עם דוד (הילטון)'},
+   {n:4,x:1.4,y:72,c:'coral',ep:'פרק 1',l:'גג פורים — נוטשת את דוד למען המשחק'},
+   {n:5,x:1.7,y:58,c:'gray',ep:'פרק 2',l:'פוקר אונליין להציל את העיתון ("מאור הגולה")'},
+   {n:6,x:2.0,y:66,c:'coral',ep:'פרק 2',l:'טיול ברוטשילד עם מאור — חלום ה-WSOP'},
+   {n:7,x:2.35,y:34,c:'gray',ep:'פרק 2',l:'רצה למצוא את דוד (זירת זק"א / הגן)'},
+   {n:8,x:2.65,y:30,c:'gray',ep:'פרק 3',l:'מונית — הרומן עם דוד מתחזק'},
+   {n:9,x:2.95,y:68,c:'coral',ep:'פרק 3',l:'טילט בראשל"צ → חוב 42K לסולי'},
+   {n:10,x:3.2,y:26,c:'teal',ep:'פרק 3',l:'דוד מציע נישואים — אירוסין'},
+   {n:11,x:3.42,y:24,c:'teal',ep:'פרק 3',l:'מחליטה לעזוב את סאנדיי'},
+   {n:12,x:3.72,y:74,c:'coral',ep:'פרק 4',l:'משחק YOO כפוי לסולי (החוב תפח ל-120K)'},
+   {n:13,x:4.02,y:24,c:'teal',ep:'פרק 4',l:'החתונה'},
+   {n:14,x:4.35,y:36,c:'gray',ep:'פרק 4',l:'קלף "נתיב ישר" נופל (ליל הכלולות)'},
+   {n:15,x:4.7,y:55,c:'gray',ep:'פרק 5',l:'סוד דוד מתגלה / עוזבת; אביגיל דוחה'},
+   {n:16,x:5.05,y:78,c:'gray',ep:'פרק 5',l:'משחק היאכטה'},
+   {n:17,x:5.4,y:86,c:'coral',ep:'פרק 5',l:'הפשיטה / מעצר'},
+   {n:18,x:5.85,y:40,c:'teal',ep:'פרק 6',l:'פיוס בבית החולים'},
+   {n:19,x:6.2,y:56,c:'gray',ep:'פרק 6',l:'חזרה לפוקר + האקתון → ווגאס'},
+   {n:20,x:7.0,y:76,c:'coral',ep:'פרק 7',l:'בר עם מאור (ווגאס)'},
+   {n:21,x:7.7,y:50,c:'purple',ep:'פרק 8',l:'שני המונולוגים (דוד מול מאור)'},
+   {n:22,x:7.95,y:90,c:'coral',ep:'פרק 8',l:'אליפות + סמל האסימון'},
+   {n:23,x:8.2,y:40,c:'purple',ep:'פרק 8',l:'בוחרת בעצמה ובאמונה'},
+   {n:24,x:8.5,y:34,c:'teal',ep:'פרק 8',l:'שדה התעופה — צ׳אנס לדוד'}
   ];
   var kb=document.getElementById('keyBody');
   P.forEach(function(p){
