@@ -31,8 +31,10 @@
   header{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:20px;}
   h1{font-family:'Heebo',sans-serif; font-size:27px; margin:0 0 6px; font-weight:700;}
   .subtitle{color:var(--muted); font-style:italic; font-size:15px;}
-  .compass{background:var(--soft); border-right:4px solid var(--accent); padding:14px 18px; margin:18px 0 22px; font-size:15.5px;}
+  .compass{background:var(--soft); border-right:4px solid var(--accent); padding:14px 18px; margin:18px 0 16px; font-size:15.5px;}
   .compass strong{color:var(--accent);}
+  .controls{font-family:'Heebo',sans-serif; font-size:13.5px; color:var(--muted); background:var(--soft); border-right:4px solid var(--accent2); padding:10px 16px; margin:0 0 14px;}
+  .controls b{color:var(--accent2); font-weight:500;}
   .legend{display:flex; flex-wrap:wrap; gap:14px; justify-content:flex-end; font-family:'Heebo',sans-serif; font-size:12.5px; color:var(--muted); margin:0 0 10px;}
   .legend span{display:flex; align-items:center; gap:6px;}
   .dot{width:11px; height:11px; border-radius:50%;}
@@ -42,10 +44,15 @@
   th,td{padding:7px 10px; border-bottom:1px solid var(--border); text-align:right;}
   th{font-family:'Heebo',sans-serif; font-weight:700; color:var(--muted); font-size:13px;}
   td.num{font-family:'Heebo',sans-serif; font-weight:700; width:34px;}
-  td.score{font-family:'Heebo',sans-serif; text-align:center; width:60px;}
-  tr.peak td.score{color:#c85a2e; font-weight:700;}
-  tr.trough td.score{color:#12866a; font-weight:700;}
-  .foot{margin-top:30px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:13.5px; font-style:italic;}
+  td.score{text-align:center; width:74px;}
+  .scoreInput{width:58px; font-family:'Heebo',sans-serif; font-size:14px; font-weight:700; text-align:center; padding:4px 4px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--ink);}
+  .scoreInput:focus{outline:none; border-color:var(--accent2);}
+  tr.peak .scoreInput{color:#c85a2e;} tr.trough .scoreInput{color:#12866a;}
+  .btnbar{display:flex; gap:10px; align-items:center; margin:14px 0 6px; flex-wrap:wrap;}
+  .btn{font-family:'Heebo',sans-serif; font-size:13px; padding:7px 14px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer;}
+  .btn:hover{border-color:var(--accent2); color:var(--accent2);}
+  .flash{font-family:'Heebo',sans-serif; font-size:13px; color:#12866a;}
+  #readout{width:100%; height:118px; font-family:'Heebo',monospace; font-size:12.5px; direction:rtl; text-align:right; background:var(--card); color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:8px; margin-top:4px;}
   .ledger td{font-size:14px; vertical-align:top; line-height:1.5;}
   .ledger td.n{font-family:'Heebo',sans-serif; font-weight:700; text-align:center; width:30px;}
   .ledger th:nth-child(2){width:22%;}
@@ -53,6 +60,7 @@
   .arrow{font-family:'Heebo',sans-serif; font-size:12px; color:var(--muted); white-space:nowrap;}
   .synth{background:var(--soft); border-right:4px solid var(--accent2); padding:13px 18px; margin:18px 0 0; font-size:15px;}
   .synth strong{color:var(--accent2);}
+  .foot{margin-top:30px; padding-top:16px; border-top:1px solid var(--border); color:var(--muted); font-size:13.5px; font-style:italic;}
 </style>
 </head>
 <body>
@@ -68,6 +76,10 @@
   הקו מתאר את המשיכה והמסלול של אסתי בין שני העולמות בכל ביט מרכזי — <em>לא</em> את שמירת המצוות שלה (לפי עקרון "הדת גדֵלה עם החטא", היא מתפללת דווקא יותר ככל שהיא חוטאת יותר).
 </div>
 
+<div class="controls">
+  <b>עריכה:</b> גררו נקודה בגרף מעלה/מטה עם העכבר, או הקלידו מיקום (0–100) בעמודת "מיקום" בטבלה — הגרף יתעדכן מיד. השינויים נשמרים בדפדפן שלכם בלבד; כדי לשמור לצמיתות לחצו <b>"העתק מיקומים"</b> ושלחו לי את הטקסט.
+</div>
+
 <div class="legend">
   <span><span class="dot" style="background:#D85A30"></span>שיא לכיוון הפוקר</span>
   <span><span class="dot" style="background:#1D9E75"></span>שיא לכיוון הגלאט</span>
@@ -76,14 +88,21 @@
 </div>
 
 <div class="chart-wrap">
-  <canvas id="estiTl" role="img" aria-label="מיקום אסתי בין עולם הגלאט לעולם הפוקר על פני 8 פרקים; שיאים בגג פורים, בפשיטה ובאליפות, ושפלים באירוסין ובחתונה, עם נחיתה באמצע משולב בסיום.">גרף של מיקום אסתי בין עולם הגלאט לעולם הפוקר לאורך העונה.</canvas>
+  <canvas id="estiTl" role="img" aria-label="מיקום אסתי בין עולם הגלאט לעולם הפוקר על פני 8 פרקים; ניתן לגרור נקודות מעלה ומטה כדי לשנות את המיקום.">גרף אינטראקטיבי של מיקום אסתי בין עולם הגלאט לעולם הפוקר לאורך העונה.</canvas>
 </div>
 
-<h2>מפתח האירועים</h2>
+<h2>מפתח האירועים <span style="font-family:'Heebo',sans-serif; font-weight:400; font-size:13px; color:var(--muted);">— עמודת "מיקום" ניתנת לעריכה</span></h2>
 <table>
   <thead><tr><th>#</th><th>פרק</th><th>אירוע</th><th>מיקום</th></tr></thead>
   <tbody id="keyBody"></tbody>
 </table>
+
+<div class="btnbar">
+  <button class="btn" id="copyBtn">העתק מיקומים</button>
+  <button class="btn" id="resetBtn">אפס לברירת מחדל</button>
+  <span class="flash" id="flash"></span>
+</div>
+<textarea id="readout" readonly></textarea>
 
 <h2>יומן ההיפוכים</h2>
 <p style="font-size:14.5px; color:var(--muted); margin:0 0 12px;">בנקודות המפנה המרכזיות: מה הרוויחה (הפיתוי שהצטבר), והמחיר שדחף אותה לכיוון ההפוך.</p>
@@ -141,13 +160,12 @@
    {n:23,x:8.2,y:40,c:'purple',ep:'פרק 8',l:'בוחרת בעצמה ובאמונה'},
    {n:24,x:8.5,y:34,c:'teal',ep:'פרק 8',l:'שדה התעופה — צ׳אנס לדוד'}
   ];
-  var kb=document.getElementById('keyBody');
-  P.forEach(function(p){
-    var tr=document.createElement('tr');
-    if(p.c==='coral')tr.className='peak'; else if(p.c==='teal')tr.className='trough';
-    tr.innerHTML='<td class="num">'+p.n+'</td><td>'+p.ep+'</td><td>'+p.l+'</td><td class="score">'+p.y+'</td>';
-    kb.appendChild(tr);
-  });
+  var DEFAULT_Y = P.map(function(p){return p.y;});
+  try{
+    var saved=JSON.parse(localStorage.getItem('estiArcPositions')||'null');
+    if(saved && saved.length===P.length){ P.forEach(function(p,i){ if(typeof saved[i]==='number') p.y=saved[i]; }); }
+  }catch(e){}
+
   var deco={id:'deco',
     beforeDraw:function(ch){
       var a=ch.chartArea,ys=ch.scales.y,xs=ch.scales.x,ctx=ch.ctx;if(!a)return;
@@ -171,7 +189,8 @@
         ctx.fillStyle=C[P[i].c];ctx.fillText(String(P[i].n),pt.x,yy);}
       ctx.restore();
     }};
-  new Chart(document.getElementById('estiTl'),{
+
+  var chart=new Chart(document.getElementById('estiTl'),{
     type:'line',
     data:{datasets:[{data:P.map(function(p){return {x:p.x,y:p.y}}),
       borderColor:ink,borderWidth:2.5,tension:0.35,
@@ -180,6 +199,7 @@
       pointRadius:P.map(function(p){return p.c==='gray'?5:7}),pointHoverRadius:9}]},
     plugins:[deco],
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:8,right:6}},
+      animation:false,
       scales:{
         y:{min:0,max:100,grid:{color:grid},border:{display:false},
           ticks:{color:muted,stepSize:50,callback:function(v){return v===100?'פוקר':v===50?'על הגדר':v===0?'גלאט':''}}},
@@ -193,6 +213,86 @@
             label:function(it){var p=P[it.dataIndex];return p.l+' — מיקום '+p.y+'/100'}}}}
     }
   });
+
+  // ---- editable table ----
+  var kb=document.getElementById('keyBody');
+  P.forEach(function(p,i){
+    var tr=document.createElement('tr');
+    if(p.c==='coral')tr.className='peak'; else if(p.c==='teal')tr.className='trough';
+    tr.innerHTML='<td class="num">'+p.n+'</td><td>'+p.ep+'</td><td>'+p.l+'</td>'+
+      '<td class="score"><input class="scoreInput" type="number" min="0" max="100" step="1" data-i="'+i+'" value="'+p.y+'"></td>';
+    kb.appendChild(tr);
+  });
+
+  function inputFor(i){ return document.querySelector('.scoreInput[data-i="'+i+'"]'); }
+
+  function setY(i,val,fromInput){
+    if(isNaN(val)) return;
+    val=Math.max(0,Math.min(100,Math.round(val)));
+    P[i].y=val;
+    chart.data.datasets[0].data[i].y=val;
+    chart.update('none');
+    if(!fromInput){ var inp=inputFor(i); if(inp) inp.value=val; }
+    save();
+  }
+
+  function save(){
+    try{ localStorage.setItem('estiArcPositions',JSON.stringify(P.map(function(p){return p.y;}))); }catch(e){}
+    updateReadout();
+  }
+
+  document.querySelectorAll('.scoreInput').forEach(function(inp){
+    inp.addEventListener('input',function(){ setY(+inp.dataset.i, parseFloat(inp.value), true); });
+  });
+
+  // ---- drag points vertically ----
+  var canvas=document.getElementById('estiTl'), dragIdx=-1;
+  function nearestIdx(e){
+    var r=canvas.getBoundingClientRect();
+    var mx=e.clientX-r.left, my=e.clientY-r.top;
+    var meta=chart.getDatasetMeta(0), best=-1, bestd=1e9;
+    for(var i=0;i<meta.data.length;i++){
+      var el=meta.data[i]; var dx=mx-el.x, dy=my-el.y; var d=Math.sqrt(dx*dx+dy*dy);
+      if(d<bestd){ bestd=d; best=i; }
+    }
+    return bestd<20 ? best : -1;
+  }
+  canvas.addEventListener('pointerdown',function(e){
+    var i=nearestIdx(e);
+    if(i>=0){ dragIdx=i; canvas.setPointerCapture(e.pointerId); canvas.style.cursor='grabbing'; e.preventDefault(); }
+  });
+  canvas.addEventListener('pointermove',function(e){
+    if(dragIdx>=0){
+      var r=canvas.getBoundingClientRect();
+      setY(dragIdx, chart.scales.y.getValueForPixel(e.clientY-r.top), false);
+      e.preventDefault();
+    } else {
+      canvas.style.cursor = (nearestIdx(e)>=0)?'grab':'default';
+    }
+  });
+  function endDrag(){ if(dragIdx>=0){ dragIdx=-1; canvas.style.cursor='default'; } }
+  canvas.addEventListener('pointerup',endDrag);
+  canvas.addEventListener('pointercancel',endDrag);
+
+  // ---- copy / reset ----
+  function updateReadout(){
+    var lines=P.map(function(p){return p.n+' · '+p.l+': '+p.y;}).join('\n');
+    var arr='['+P.map(function(p){return p.y;}).join(',')+']';
+    document.getElementById('readout').value='מיקומים נוכחיים (0–100):\n'+lines+'\n\nמערך: '+arr;
+  }
+  function flash(msg){ var f=document.getElementById('flash'); f.textContent=msg; setTimeout(function(){f.textContent='';},2000); }
+  document.getElementById('copyBtn').addEventListener('click',function(){
+    var t=document.getElementById('readout');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t.value).then(function(){flash('הועתק ✓');},function(){t.select();flash('סמן והעתק');});
+    } else { t.select(); document.execCommand&&document.execCommand('copy'); flash('הועתק ✓'); }
+  });
+  document.getElementById('resetBtn').addEventListener('click',function(){
+    DEFAULT_Y.forEach(function(v,i){ setY(i,v,false); });
+    flash('אופס לברירת מחדל');
+  });
+
+  updateReadout();
 })();
 </script>
 </body>
