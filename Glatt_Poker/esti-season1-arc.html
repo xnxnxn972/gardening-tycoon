@@ -52,6 +52,9 @@
   .btn{font-family:'Heebo',sans-serif; font-size:13px; padding:7px 14px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer;}
   .btn:hover{border-color:var(--accent2); color:var(--accent2);}
   .flash{font-family:'Heebo',sans-serif; font-size:13px; color:#12866a;}
+  .btn-primary{background:#1D9E75; color:#fff; border-color:#1D9E75;}
+  .btn-primary:hover{background:#178a64; color:#fff; border-color:#178a64;}
+  .cloudstatus{font-family:'Heebo',sans-serif; font-size:12.5px; color:var(--muted);}
   #readout{width:100%; height:118px; font-family:'Heebo',monospace; font-size:12.5px; direction:rtl; text-align:right; background:var(--card); color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:8px; margin-top:4px;}
   .ledger td{font-size:14px; vertical-align:top; line-height:1.5;}
   .ledger td.n{font-family:'Heebo',sans-serif; font-weight:700; text-align:center; width:30px;}
@@ -77,7 +80,7 @@
 </div>
 
 <div class="controls">
-  <b>עריכה:</b> גררו נקודה בגרף מעלה/מטה עם העכבר, או הקלידו מיקום (0–100) בעמודת "מיקום" בטבלה — הגרף יתעדכן מיד. השינויים נשמרים בדפדפן שלכם בלבד; כדי לשמור לצמיתות לחצו <b>"העתק מיקומים"</b> ושלחו לי את הטקסט.
+  <b>עריכה:</b> גררו נקודה בגרף מעלה/מטה עם העכבר, או הקלידו מיקום (0–100) בעמודת "מיקום" בטבלה — הגרף יתעדכן מיד. לחיצה על <b>"שמור לכולם"</b> שומרת את המיקומים בענן, כך שכל מי שייכנס לקישור יראה את הגרסה השמורה. עריכות שלא נשמרו לענן נשמרות זמנית בדפדפן שלכם בלבד.
 </div>
 
 <div class="legend">
@@ -98,9 +101,11 @@
 </table>
 
 <div class="btnbar">
+  <button class="btn btn-primary" id="saveCloudBtn">שמור לכולם (בענן)</button>
   <button class="btn" id="copyBtn">העתק מיקומים</button>
   <button class="btn" id="resetBtn">אפס לברירת מחדל</button>
   <span class="flash" id="flash"></span>
+  <span class="cloudstatus" id="cloudStatus"></span>
 </div>
 <textarea id="readout" readonly></textarea>
 
@@ -293,6 +298,46 @@
   });
 
   updateReadout();
+
+  // ---- cloud sync (shared Supabase; same anon key/pattern as the other games) ----
+  var SUPABASE_URL='https://hmvxanqkorcfxwsdusuj.supabase.co';
+  var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtdnhhbnFrb3JjZnh3c2R1c3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjI4OTgsImV4cCI6MjA5NTI5ODg5OH0.7o7OnhikQdgApqPTEIbhjOZ-YcKDU1fBFpcLXPXtEtA';
+  var CLOUD_TABLE='glatt_arc_positions', CLOUD_ROW='esti_s1', CLOUD_VER=2, sbPromise=null;
+  function loadSB(){
+    if(sbPromise) return sbPromise;
+    sbPromise=import('https://esm.sh/@supabase/supabase-js@2')
+      .then(function(m){ return m.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); })
+      .catch(function(e){ console.warn('supabase load failed',e); return null; });
+    return sbPromise;
+  }
+  function cstat(msg,color){ var s=document.getElementById('cloudStatus'); if(s){ s.textContent=msg; s.style.color=color||'var(--muted)'; } }
+  function applyY(arr){ for(var i=0;i<P.length&&i<arr.length;i++){ if(typeof arr[i]==='number') setY(i,arr[i],false); } }
+
+  async function initCloud(){
+    cstat('טוען מהענן…');
+    var sb=await loadSB();
+    if(!sb){ cstat('לא מחובר לענן — עריכה מקומית בלבד','#c4660a'); return; }
+    try{
+      var res=await sb.from(CLOUD_TABLE).select('positions').eq('id',CLOUD_ROW).maybeSingle();
+      if(res.error) throw res.error;
+      var pos=res.data&&res.data.positions;
+      if(pos&&Array.isArray(pos.y)&&pos.y.length===P.length){ applyY(pos.y); cstat('מסונכרן עם הענן ✓','#12866a'); }
+      else { cstat('אין עדיין נתונים בענן — שמרו כדי לפרסם','#c4660a'); }
+    }catch(e){ console.warn(e); cstat('שגיאת ענן — עריכה מקומית בלבד','#c4660a'); }
+  }
+  async function saveCloud(){
+    cstat('שומר…');
+    var sb=await loadSB();
+    if(!sb){ cstat('אין חיבור לענן','#b02a2a'); return; }
+    try{
+      var payload={ id:CLOUD_ROW, positions:{ v:CLOUD_VER, y:P.map(function(p){return p.y;}) }, updated_at:new Date().toISOString() };
+      var res=await sb.from(CLOUD_TABLE).upsert(payload).select();
+      if(res.error) throw res.error;
+      cstat('נשמר לכולם ✓','#12866a'); flash('נשמר בענן ✓');
+    }catch(e){ console.warn(e); cstat('השמירה נכשלה ('+(e.message||e)+')','#b02a2a'); }
+  }
+  document.getElementById('saveCloudBtn').addEventListener('click',saveCloud);
+  initCloud();
 })();
 </script>
 </body>
