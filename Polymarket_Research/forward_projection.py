@@ -1,4 +1,29 @@
-"""WHAT DOES THE ACCEPTANCE GATE DO TO FUTURE PROFITABILITY AND SCALE?
+"""SUPERSEDED 2026-08-13 by clustered_surface.py -- DO NOT QUOTE THE MONTHS-TO-VERDICT TABLE.
+
+The whole point of this script is months-to-verdict, and it computed that per LEG: it divided a
+leg-count requirement by a legs-per-month supply, using a leg-level SD. A verdict consumes
+INDEPENDENT observations, and legs of one event are not independent. Every timeline here is
+optimistic, several badly so:
+
+    cell                 here (per-leg)      clustered
+    secondfav             0.8 months          6.7 months
+    secondfav2            0.8 months          4.6 months
+    0.20-0.35 NO          4.0 months         17.3 months
+    0.50-0.65 NO         12.7 months        758.6 months, and the CI now SPANS ZERO
+
+The "0.20-0.35 NO is the nearest unexploited headroom" and "the gate reveals suppressed sell-side
+edges at 0.50-0.65" claims both came from this table. The first is real but far slower than stated;
+the second does not survive clustering and is withdrawn.
+
+What DOES survive: the acceptance-gate logic itself -- that a cell must be judged on months to a
+verdict at its real supply, and that favbuy/geobuy fail it by orders of magnitude. clustered_surface.py
+applies the same gate with the sample size counted correctly.
+
+Kept for provenance. Use clustered_surface.py for decisions.
+
+--- original header ---
+
+WHAT DOES THE ACCEPTANCE GATE DO TO FUTURE PROFITABILITY AND SCALE?
 
 acceptance_sim.py settled the backward-looking half: "traded within 24h" is an almost perfect proxy
 for "will trade again" (P(fossil|fresh) = 2.4-6.5%, P(fossil|stale) = 96-98%), but every one of our

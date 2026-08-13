@@ -1,4 +1,25 @@
-"""THE SURFACE, RE-MEASURED ON MARKETS THAT STILL HAD A LIVE BOOK AT ENTRY.
+"""SUPERSEDED 2026-08-13 by clustered_surface.py -- DO NOT QUOTE THE NUMBERS BELOW.
+
+Every statistic in this file is PER-LEG. In a negRisk event with eight legs in one band those legs
+share a single outcome draw and are ONE observation, not eight. The z-scores here are inflated by
+roughly sqrt(legs per cluster) (1.1x-2.8x across the surface, so up to ~1.7x on z), and the
+"needs ~N settled markets" figures counted legs where a verdict actually consumes clusters.
+
+Clustering also moved the POINT ESTIMATES, not just the intervals, because a leg-weighted mean
+over-weights events that contribute many band legs: 0.35-0.50 reads -13.35pt here and -6.44pt
+clustered. Two cells lose significance entirely under clustering -- 0.03-0.10 and 0.50-0.65 -- and
+the 0.50-0.65 "suppressed sell-side edge" reported from this script was an artifact.
+
+The FOSSIL FINDING this script established is unaffected and still stands: restricting to markets
+that still had a live book removes the phantom edge, and it moves the gap down in all eight bands.
+That conclusion is about which population to measure, not about significance, so it survives.
+
+Kept for provenance -- it is the script the fossil test was built with and it is cited in the
+2026-08-12 research commit. Use clustered_surface.py for any number that informs a decision.
+
+--- original header ---
+
+THE SURFACE, RE-MEASURED ON MARKETS THAT STILL HAD A LIVE BOOK AT ENTRY.
 
 Established by dead_markets.py: splitting each cell by whether the market EVER TRADED AGAIN after the
 snapshot separates the edge almost perfectly.

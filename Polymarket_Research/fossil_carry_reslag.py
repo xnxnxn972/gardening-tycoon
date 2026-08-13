@@ -1,5 +1,12 @@
 """THE FOSSIL TEST APPLIED TO CARRY AND THE RES-LAG FAMILY.
 
+LEG-LEVEL CAVEAT (added 2026-08-13). The z-scores and any months-to-verdict figures below are
+computed PER LEG. Legs of one negRisk event share a single outcome draw and are ONE observation, so
+z is inflated by roughly sqrt(legs per cluster) and timelines are optimistic. See
+clustered_surface.py for the event-clustered version of the same measurements. The DIRECTIONAL
+conclusions in this script were checked against the clustered surface and are unchanged; only the
+confidence and the timelines move.
+
 Established for favbuy/geobuy (dead_markets.py, live_book_surface.py): splitting a research cell by
 whether the market EVER TRADED AGAIN after the snapshot separates a real edge from a phantom one.
 A market that goes quiet has no counterparty, its last print is a fossil, and the outcome beats that
