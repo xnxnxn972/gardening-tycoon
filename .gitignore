@@ -11,3 +11,7 @@ desktop.ini
 .idea/
 *.swp
 *~
+
+# Chasing P1 moved to its own repo (github.com/xnxnxn972/chasing-p1) and is
+# checked out here as a nested clone.
+chasing-p1/
