@@ -1,4 +1,6 @@
-# F1 Driver Career — MVP (v0.1)
+# CHASING P1 — MVP (v0.1)
+
+> One career. One goal.
 
 A browser-based, choice-driven Formula 1 career simulation. You start at 16 as an
 unknown junior and try to climb F4 → F3 → F2 → Formula 1 → World Champion. You
@@ -21,7 +23,7 @@ onto GitHub Pages. `npm run typecheck` runs `tsc --noEmit`.
 
 | Screen | File | What it is |
 | --- | --- | --- |
-| WHO ARE YOU? | `src/screens/SetupScreen.tsx` | Name, number, nationality, driving style, seed |
+| WHO ARE YOU? | `src/screens/SetupScreen.tsx` | Brand lockup, the four pillars, name, number, nationality, driving style, seed |
 | CAREER | `src/screens/CareerScreen.tsx` | Driver card, the current decision, the growing career record |
 | CAREER SUMMARY | `src/screens/SummaryScreen.tsx` | Title, verdict, totals, achievements, share card |
 
@@ -40,7 +42,7 @@ src/game/     careerEngine · seasonSimulator · driverDevelopment · driverMark
               contractEngine · teamDevelopment · decisionEngine · achievementEngine
               careerVerdict · random · types
 src/screens/  SetupScreen · CareerScreen · SummaryScreen
-src/components/ DriverCard · StepCard · CareerTable
+src/components/ Brand · DriverCard · StepCard · CareerTable
 ```
 
 ### The season machine
@@ -115,6 +117,19 @@ The junior ladder is the main filter: promotion needs results (top 6 in F4, top 
 in F3), and three seasons without moving up ends the career. Hidden potential is
 skewed (72–97, most drivers in the high seventies), so plenty of careers stall
 before Formula 1.
+
+## Look and feel
+
+Premium motorsport minimalism, per the CHASING P1 brand sheet: near-black
+ground, a single acid-lime accent (`--lime: #c8ff00`), wide-tracked uppercase
+labels, hairline rules and italic condensed display type. `src/components/Brand.tsx`
+holds the P1 monogram — drawn as SVG geometry rather than set as type, so it
+renders identically before webfonts land — plus the lockup and the labelled rule
+bars that frame every screen.
+
+Colour is spent on exactly two things: the lime accent, and real F1 team
+identity (an offer card's top edge, a constructors-table dot). Everything else
+is greyscale.
 
 ## Content
 

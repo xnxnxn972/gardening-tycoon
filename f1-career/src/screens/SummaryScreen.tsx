@@ -10,6 +10,7 @@ import {
 import { formatMoney } from '../game/contractEngine';
 import { CareerTable } from '../components/CareerTable';
 import { AchievementBadge } from '../components/StepCard';
+import { BrandLockup, RuleBar, TAGLINE } from '../components/Brand';
 
 export function SummaryScreen({ state, onRestart }: { state: GameState; onRestart: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -39,8 +40,9 @@ export function SummaryScreen({ state, onRestart }: { state: GameState; onRestar
 
   return (
     <div className="app">
+      <RuleBar left="Chasing P1" right="Career summary" accent />
+
       <header className="summary-hero">
-        <div className="eyebrow">Career summary</div>
         <h1 className="summary-title">{title}</h1>
         <h2 className="summary-name">
           {state.player.flag} {state.player.name} #{state.player.number}
@@ -65,7 +67,7 @@ export function SummaryScreen({ state, onRestart }: { state: GameState; onRestar
         </section>
 
         <div className="share-card">
-          <div className="eyebrow">Share card</div>
+          <BrandLockup size="md" />
           <h2 className="summary-title" style={{ fontSize: 'clamp(32px, 6vw, 56px)' }}>
             {title}
           </h2>
@@ -141,6 +143,10 @@ export function SummaryScreen({ state, onRestart }: { state: GameState; onRestar
           <button className="btn btn-primary" onClick={onRestart}>
             Start a new career
           </button>
+        </div>
+
+        <div className="page-foot">
+          <RuleBar left="Chasing P1" right={TAGLINE} accent />
         </div>
       </div>
     </div>

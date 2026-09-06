@@ -3,34 +3,73 @@ import type { DrivingStyle } from '../game/types';
 import type { CareerSetup } from '../game/careerEngine';
 import { NATIONALITIES } from '../data/nationalities';
 import { makeSeed } from '../game/random';
+import { BrandLockup, RuleBar, TAGLINE } from '../components/Brand';
 
 const STYLE_CARDS: {
   id: DrivingStyle;
   name: string;
-  blurb: string;
   pros: string[];
   cons: string[];
 }[] = [
   {
     id: 'speed',
     name: 'Speed',
-    blurb: 'Natural raw pace.',
     pros: ['Qualifying', 'Overtaking', 'Spectacular days'],
     cons: ['Crashes more', 'Less consistent']
   },
   {
     id: 'technical',
     name: 'Technical',
-    blurb: 'Precise and analytical.',
     pros: ['Car development', 'Tyre management', 'Great in bad cars'],
     cons: ['Slow to find raw pace']
   },
   {
     id: 'physical',
     name: 'Physical',
-    blurb: 'Aggressive and resilient.',
     pros: ['Starts', 'Wheel-to-wheel', 'Difficult conditions'],
     cons: ['Weaker on Saturdays']
+  }
+];
+
+/** The four pillars from the brand sheet, with the same line-art icons. */
+const PILLARS: { name: string; copy: string; icon: React.ReactNode }[] = [
+  {
+    name: 'Build',
+    copy: 'Develop your driver. Improve performance. Make the right calls.',
+    icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <path d="M3 20V13M9 20V8M15 20V11M21 20V4" strokeLinecap="square" />
+      </svg>
+    )
+  },
+  {
+    name: 'Compete',
+    copy: 'Race. Adapt. Outthink rivals. Prove yourself.',
+    icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <path d="M12 3a9 9 0 0 1 0 18 9 9 0 0 1 0-18Z" />
+        <path d="M21 12h-8a3 3 0 0 0-3 3v5.7" />
+      </svg>
+    )
+  },
+  {
+    name: 'Achieve',
+    copy: 'Championships. Lasting legacy. Become the best.',
+    icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <path d="M7 3h10v6a5 5 0 0 1-10 0V3Z" />
+        <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3M12 14v4M8 21h8" strokeLinecap="square" />
+      </svg>
+    )
+  },
+  {
+    name: 'Beyond',
+    copy: 'More than races. A career that defines you.',
+    icon: (
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <path d="M8.5 12a3.5 3.5 0 1 1 3.5 3.5c-2 0-2.5-7-4.5-7a3.5 3.5 0 0 0 0 7c2 0 2.5-7 4.5-7a3.5 3.5 0 0 1 0 7" />
+      </svg>
+    )
   }
 ];
 
@@ -46,6 +85,23 @@ export function SetupScreen({ onStart }: { onStart: (setup: CareerSetup) => void
 
   return (
     <div className="setup">
+      <RuleBar left="Chasing P1" right="F1 Career Simulation" accent />
+
+      <div className="setup-hero">
+        <BrandLockup size="lg" />
+        <div className="tagline">{TAGLINE}</div>
+      </div>
+
+      <div className="pillars">
+        {PILLARS.map((pillar) => (
+          <div className="pillar" key={pillar.name}>
+            {pillar.icon}
+            <h4>{pillar.name}</h4>
+            <p>{pillar.copy}</p>
+          </div>
+        ))}
+      </div>
+
       <header className="setup-head">
         <h1>Who Are You?</h1>
         <p>Sixteen years old. One dream: Formula 1.</p>
@@ -85,7 +141,7 @@ export function SetupScreen({ onStart }: { onStart: (setup: CareerSetup) => void
           </div>
         </div>
         {/* #1 is reserved: the reigning World Champion earns the right to it. */}
-        <p className="hint" style={{ marginTop: -12, marginBottom: 20 }}>
+        <p className="hint" style={{ marginTop: -14, marginBottom: 22 }}>
           2&ndash;99. Number 1 belongs to the reigning World Champion &mdash; win it and you can run it.
         </p>
 
@@ -158,6 +214,10 @@ export function SetupScreen({ onStart }: { onStart: (setup: CareerSetup) => void
           Start your career
         </button>
       </form>
+
+      <div className="page-foot">
+        <RuleBar left="Chasing P1" right={TAGLINE} accent />
+      </div>
     </div>
   );
 }

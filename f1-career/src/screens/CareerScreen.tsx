@@ -3,6 +3,7 @@ import { chooseDecisionOption, chooseOffer, continueStep, declineOffers } from '
 import { DriverCard } from '../components/DriverCard';
 import { CareerTable } from '../components/CareerTable';
 import { AchievementBadge, DecisionCard, NewsCard, OffersCard, ResultCard } from '../components/StepCard';
+import { BrandLockup, RuleBar, TAGLINE } from '../components/Brand';
 
 export function CareerScreen({
   state,
@@ -17,6 +18,8 @@ export function CareerScreen({
 
   return (
     <div className="app">
+      <RuleBar left={<BrandLockup size="sm" />} right="F1 Career Simulation" />
+
       <div className="topbar">
         <div className="topbar-left">
           <span className="year">{state.year}</span>
@@ -78,6 +81,10 @@ export function CareerScreen({
 
           <CareerTable state={state} />
         </div>
+      </div>
+
+      <div className="page-foot">
+        <RuleBar left="Chasing P1" right={TAGLINE} accent />
       </div>
     </div>
   );

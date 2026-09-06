@@ -18,7 +18,7 @@ export function DecisionCard({
   onChoose: (optionId: string) => void;
 }) {
   return (
-    <section className="panel panel-pad">
+    <section className="panel panel-pad step-card">
       <div className="step-tag">{step.tag}</div>
       <h2 className="step-title">{step.title}</h2>
       <p className="step-body">{step.body}</p>
@@ -58,7 +58,7 @@ export function OffersCard({
   onDecline: () => void;
 }) {
   return (
-    <section className="panel panel-pad">
+    <section className="panel panel-pad step-card">
       <div className="step-tag">{step.tag}</div>
       <h2 className="step-title">{step.title}</h2>
       <p className="step-body">{step.body}</p>
@@ -125,7 +125,7 @@ export function OffersCard({
 
 export function NewsCard({ step, onContinue }: { step: PendingNews; onContinue: () => void }) {
   return (
-    <section className="panel panel-pad">
+    <section className="panel panel-pad step-card">
       <div className="step-tag">{step.tag}</div>
       <h2 className="step-title">{step.title}</h2>
       <p className="step-body">{step.body}</p>
@@ -149,7 +149,7 @@ export function ResultCard({
   const ovrDelta = r.driverOverallEnd - r.driverOverallStart;
 
   return (
-    <section className="panel panel-pad">
+    <section className="panel panel-pad step-card">
       <div className="step-tag">{r.year} season · {r.series}</div>
       <h2 className="step-title">
         {r.reserveYear
