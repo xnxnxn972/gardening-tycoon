@@ -15,3 +15,7 @@ desktop.ini
 # Chasing P1 moved to its own repo (github.com/xnxnxn972/chasing-p1) and is
 # checked out here as a nested clone.
 chasing-p1/
+
+# 5-Star Chef moved to its own repo (github.com/xnxnxn972/starchefmia),
+# checked out here as a nested clone.
+starchefmia/
